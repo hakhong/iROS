@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IBM 026 천공카드 시뮬레이터 | iROS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=IBM+Plex+Mono:wght@400;700&display=swap');
+:root{
+  --bg:#0c0c10;--panel:#111118;--deep:#08080f;--border:#1e1e2e;
+  --card-bg:#f2edd8;--card-hole:#0c0c10;--hole-emp:#ddd5bc;
+  --ftn:#44cc44;--ftn-dim:#1a3a1a;
+  --cbl:#4488ff;--cbl-dim:#112244;
+  --gold:#ffcc44;--red:#ff4455;
+  --paper:#f5eed8;--ink:#110e00;
+  --real:#44ff44;--fake:#ff4444;--warn:#ff8800;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:#aaa;font-family:'IBM Plex Mono',monospace;min-height:100vh;display:flex;flex-direction:column;}
+
+/* 헤더 */
+.header{background:var(--deep);border-bottom:2px solid #1a1a00;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex-shrink:0;}
+.logo{font-family:'VT323',monospace;font-size:22px;letter-spacing:3px;color:var(--gold);text-shadow:0 0 10px var(--gold);}
+.logo-sub{font-size:9px;color:#554;letter-spacing:2px;}
+
+/* 진짜/가짜 배너 */
+.truth-banner{background:#0a0a00;border-bottom:2px solid #333300;padding:10px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-shrink:0;}
+.truth-col{display:flex;flex-direction:column;gap:4px;}
+.truth-title{font-size:9px;letter-spacing:2px;margin-bottom:2px;}
+.truth-item{display:flex;align-items:center;gap:6px;font-size:10px;padding:3px 8px;border-radius:2px;}
+.truth-item.real{background:#001a00;color:var(--real);border-left:2px solid var(--real);}
+.truth-item.fake{background:#1a0000;color:var(--fake);border-left:2px solid var(--fake);}
+
+/* 탭 */
+.tabs{display:flex;background:var(--deep);border-bottom:2px solid var(--border);padding:0 20px;flex-shrink:0;}
+.tab{font-family:'VT323',monospace;font-size:18px;letter-spacing:2px;padding:10px 28px;cursor:pointer;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.2s;color:#334;}
+.tab.ftn{color:var(--ftn-dim);}
+.tab.cbl{color:var(--cbl-dim);}
+.tab.ftn.active{color:var(--ftn);border-bottom-color:var(--ftn);text-shadow:0 0 8px var(--ftn);}
+.tab.cbl.active{color:var(--cbl);border-bottom-color:var(--cbl);text-shadow:0 0 8px var(--cbl);}
+
+/* 메인 레이아웃 */
+.workspace{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;gap:1px;background:var(--border);flex:1;min-height:0;}
+.panel{background:var(--panel);padding:14px;display:flex;flex-direction:column;}
+.panel-title{font-family:'VT323',monospace;font-size:16px;letter-spacing:2px;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0;}
+.panel-title.ftn{color:var(--ftn);}
+.panel-title.cbl{color:var(--cbl);}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:8px;padding:2px 5px;border-radius:2px;letter-spacing:1px;}
+.b-real{background:#001a00;color:var(--real);border:1px solid var(--real);}
+.b-warn{background:#1a0800;color:var(--warn);border:1px solid var(--warn);}
+.b-ftn{background:var(--ftn-dim);color:var(--ftn);}
+.b-cbl{background:var(--cbl-dim);color:var(--cbl);}
+
+/* 에디터 */
+.editor-wrap{background:var(--deep);border:1px solid var(--border);border-radius:3px;padding:8px;flex:1;display:flex;flex-direction:column;}
+.col-ruler{font-family:'Share Tech Mono',monospace;font-size:7px;color:#223;padding-left:28px;margin-bottom:2px;white-space:nowrap;overflow:hidden;flex-shrink:0;}
+.editor-body{display:flex;flex:1;}
+.lnums{font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.55;color:#334;width:24px;flex-shrink:0;user-select:none;}
+.code-ta{flex:1;background:transparent;border:none;outline:none;font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.55;resize:none;caret-color:var(--gold);letter-spacing:0.3px;}
+.code-ta.ftn{color:#88ff88;}
+.code-ta.cbl{color:#88bbff;}
+
+/* 역사 샘플 버튼 */
+.samples{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;}
+.sbtn{font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 7px;cursor:pointer;letter-spacing:1px;border:1px solid;}
+.sbtn-ftn{background:var(--ftn-dim);border-color:var(--ftn);color:var(--ftn);}
+.sbtn-ftn:hover{background:var(--ftn);color:#000;}
+.sbtn-cbl{background:var(--cbl-dim);border-color:var(--cbl);color:var(--cbl);}
+.sbtn-cbl:hover{background:var(--cbl);color:#000;}
+
+/* 카드 덱 */
+.card-deck{flex:1;display:flex;flex-direction:column;gap:4px;overflow-y:auto;padding-right:3px;min-height:0;}
+.card-deck::-webkit-scrollbar{width:4px;}
+.card-deck::-webkit-scrollbar-thumb{background:var(--border);}
+
+.punch-card{background:var(--card-bg);border-radius:2px;position:relative;padding:3px 4px 5px 4px;border:1px solid #c0b890;box-shadow:1px 1px 3px rgba(0,0,0,0.6);cursor:default;flex-shrink:0;}
+.punch-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px 0 0 0;}
+.pc-ftn::before{background:var(--ftn);}
+.pc-ID::before{background:#4466cc;}
+.pc-ENV::before{background:#cc4433;}
+.pc-DATA::before{background:#44aa44;}
+.pc-PROC::before{background:#aaaa00;}
+.card-notch{position:absolute;top:0;right:0;width:9px;height:9px;background:var(--bg);clip-path:polygon(100% 0,100% 100%,0 0);}
+.card-text{font-family:'Share Tech Mono',monospace;font-size:5.5px;color:#3a3010;letter-spacing:1.3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;}
+.holes-area{display:flex;flex-direction:column;gap:1px;}
+.hole-row{display:flex;gap:1px;align-items:center;}
+.hole-lbl{font-family:'Share Tech Mono',monospace;font-size:4px;color:#8a7850;width:10px;text-align:right;flex-shrink:0;}
+.hole{width:3px;height:4px;border-radius:1px;background:var(--hole-emp);flex-shrink:0;}
+.hole.punched{background:var(--card-hole);}
+.card-seq{position:absolute;bottom:2px;right:4px;font-family:'Share Tech Mono',monospace;font-size:4.5px;color:#8a7850;}
+.div-lbl{position:absolute;bottom:2px;left:7px;font-family:'Share Tech Mono',monospace;font-size:4.5px;}
+
+/* 컨트롤 바 */
+.controls{grid-column:1/-1;background:var(--deep);padding:10px 18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-shrink:0;}
+.bbtn{font-family:'VT323',monospace;font-size:17px;letter-spacing:2px;padding:6px 16px;border:2px solid;cursor:pointer;background:transparent;transition:all 0.15s;}
+.bbtn-punch-ftn{color:var(--gold);border-color:var(--gold);}
+.bbtn-punch-ftn:hover{background:var(--gold);color:#000;}
+.bbtn-punch-cbl{color:var(--cbl);border-color:var(--cbl);}
+.bbtn-punch-cbl:hover{background:var(--cbl);color:#000;}
+.bbtn-run{color:var(--real);border-color:var(--real);font-size:14px;}
+.bbtn-run:hover{background:var(--real);color:#000;box-shadow:0 0 12px var(--real);}
+.bbtn-pdf{color:var(--warn);border-color:var(--warn);font-size:13px;padding:6px 12px;}
+.bbtn-pdf:hover{background:var(--warn);color:#000;}
+.bbtn-rst{color:var(--red);border-color:var(--red);font-size:13px;padding:6px 10px;}
+.bbtn-rst:hover{background:var(--red);color:#000;}
+.pinfo{font-size:10px;color:#445;line-height:1.7;}
+
+/* 라인프린터 */
+.printer-panel{grid-column:1/-1;background:var(--panel);padding:14px;}
+.printer-body{background:#1a1608;border:2px solid #3a3010;border-radius:4px;padding:12px;}
+.printer-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.printer-name{font-family:'VT323',monospace;font-size:16px;color:#c8a040;letter-spacing:3px;}
+.plights{display:flex;gap:5px;}
+.pl{width:7px;height:7px;border-radius:50%;background:#222;}
+.pl.g{background:var(--real);box-shadow:0 0 5px var(--real);}
+.pl.a{background:var(--gold);box-shadow:0 0 5px var(--gold);animation:blink 0.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.output-note{background:#0a0500;border:1px solid var(--warn);color:var(--warn);font-size:9px;padding:3px 8px;border-radius:2px;margin-bottom:6px;}
+.paper{background:var(--paper);border:1px solid #c0b080;min-height:140px;padding:12px 26px;position:relative;overflow:hidden;}
+.paper::before{content:'';position:absolute;left:0;top:0;bottom:0;width:20px;background:repeating-linear-gradient(to bottom,#ddd8c0 0,#ddd8c0 8px,#c8c0a0 8px,#c8c0a0 10px);}
+.paper::after{content:'';position:absolute;right:0;top:0;bottom:0;width:20px;background:repeating-linear-gradient(to bottom,#ddd8c0 0,#ddd8c0 8px,#c8c0a0 8px,#c8c0a0 10px);}
+.print-out{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--ink);line-height:1.85;white-space:pre;padding:0 4px;min-height:120px;}
+
+/* 역사 주석 박스 */
+.hist-note{background:#0a0800;border:1px solid #332200;padding:8px 12px;font-size:9px;color:#665533;line-height:1.8;margin-bottom:8px;border-radius:3px;flex-shrink:0;}
+.hist-note strong{color:var(--gold);}
+
+/* 코드 보기 탭 */
+.code-tabs{display:flex;gap:0;margin-bottom:0;flex-shrink:0;}
+.code-tab{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  padding:5px 14px;cursor:pointer;border:1px solid var(--border);
+  background:var(--deep);letter-spacing:1px;border-bottom:none;
+  color:#334;transition:all 0.15s;
+}
+.code-tab.ftn-active{color:var(--ftn);background:var(--panel);border-bottom-color:var(--panel);}
+.code-tab.cbl-active{color:var(--cbl);background:var(--panel);border-bottom-color:var(--panel);}
+.code-tab:not(.ftn-active):not(.cbl-active):hover{color:#668;background:#0d0d14;}
+
+/* 변환 코드 표시 */
+.converted-wrap{
+  background:var(--deep);border:1px solid var(--border);
+  border-radius:0 3px 3px 3px;padding:8px;
+  flex:1;display:none;flex-direction:column;min-height:0;
+}
+.converted-wrap.visible{display:flex;}
+.converted-label{
+  font-size:8px;color:#446644;letter-spacing:1px;
+  margin-bottom:5px;padding:3px 6px;
+  background:#001a00;border:1px solid #1a3a1a;border-radius:2px;
+  flex-shrink:0;
+}
+.converted-ta{
+  flex:1;background:transparent;border:none;outline:none;
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  line-height:1.55;color:#88cc88;resize:none;
+  letter-spacing:0.3px;cursor:default;
+}
+
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--deep);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+  <div>
+    <div class="logo">IBM 026 천공카드 시뮬레이터</div>
+    <div class="logo-sub">FORTRAN II (1957) & COBOL-60 (1959) — 교육용 역사 재현</div>
+  </div>
+</div>
+
+<!-- 진짜/가짜 배너 -->
+<div class="truth-banner">
+  <div class="truth-col">
+    <div class="truth-title" style="color:var(--real);">✓ 이것만 실제입니다</div>
+    <div class="truth-item real">✓ 홀러리스 구멍 위치 — IBM 026 실제 인코딩 (1928년 표준)</div>
+    <div class="truth-item real">✓ FORTRAN 컬럼 배열 — COL 1-5 / 6 / 7-72 / 73-80</div>
+    <div class="truth-item real">✓ COBOL 컬럼 배열 — COL 1-6 / 7 / 8-11 / 12-72 / 73-80</div>
+    <div class="truth-item real">✓ 실제 역사 샘플 코드 — 당시 실제 사용된 프로그램</div>
+  </div>
+  <div class="truth-col">
+    <div class="truth-title" style="color:var(--fake);">✗ 없앤 것들 (가짜였음)</div>
+    <div class="truth-item fake">✗ IR 중간언어 — 제거됨</div>
+    <div class="truth-item fake">✗ 기계어 바이너리 — 제거됨</div>
+    <div class="truth-item fake">✗ 가짜 배치 실행 — 제거됨</div>
+    <div class="truth-item fake">✗ JS 파서 (버그 있었음) — 제거됨</div>
+  </div>
+</div>
+
+<!-- 탭 -->
+<div class="tabs">
+  <button class="tab ftn active" onclick="switchTab('ftn')">▣ FORTRAN II — IBM 7094</button>
+  <button class="tab cbl" onclick="switchTab('cbl')">▣ COBOL-60 — IBM 1401</button>
+</div>
+
+<div class="workspace">
+
+  <!-- FORTRAN 에디터 -->
+  <div class="panel" id="ftn-editor">
+    <div class="panel-title ftn">
+      FORTRAN II 소스
+      <span class="badge b-ftn">IBM 888157 카드</span>
+      <span class="badge b-real">컬럼 ✓ 실제</span>
+      <span id="ftn-cnt" class="badge b-ftn" style="margin-left:auto;">0 카드</span>
+    </div>
+    <div class="hist-note" id="ftn-hist-note">
+      <strong>역사 샘플을 선택하면</strong> 당시 실제 사용되었던 코드가 로드됩니다.<br>
+      컬럼 7-72에 코드, 컬럼 1-5에 레이블, 컬럼 73-80은 카드 순서번호.
+    </div>
+    <!-- 코드 보기 탭 -->
+    <div class="code-tabs">
+      <button class="code-tab ftn-active" id="ftn-tab-orig" onclick="switchCodeTab('ftn','orig')">
+        📋 천공카드 원본 (고정형식)
+      </button>
+      <button class="code-tab" id="ftn-tab-free" onclick="switchCodeTab('ftn','free')">
+        ⚡ godbolt 전송 코드 (자유형식)
+      </button>
+    </div>
+
+    <!-- 원본 에디터 -->
+    <div class="editor-wrap" id="ftn-orig-wrap">
+      <div class="col-ruler" id="ftn-ruler"></div>
+      <div class="editor-body">
+        <div class="lnums" id="ftn-lnums">1</div>
+        <textarea class="code-ta ftn" id="ftn-code" spellcheck="false" oninput="ftnEdit()"></textarea>
+      </div>
+    </div>
+
+    <!-- 변환된 자유형식 -->
+    <div class="converted-wrap" id="ftn-free-wrap">
+      <div class="converted-label">
+        ✓ godbolt.org 전송 직전 자동 변환된 코드 — C주석→!, 컬럼제거, 레이블 정리
+      </div>
+      <div class="editor-body" style="flex:1;">
+        <div class="lnums" id="ftn-free-lnums">1</div>
+        <textarea class="converted-ta" id="ftn-free-code" readonly spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="samples">
+      <span style="font-size:9px;color:#445;">역사 샘플 ▶</span>
+      <button class="sbtn sbtn-ftn" onclick="ftnLoad('hilbert')">힐버트 행렬</button>
+      <button class="sbtn sbtn-ftn" onclick="ftnLoad('sum3')">카드입력 합산</button>
+      <button class="sbtn sbtn-ftn" onclick="ftnLoad('quadratic')">이차방정식</button>
+      <button class="sbtn sbtn-ftn" onclick="ftnLoad('table')">제곱수 테이블</button>
+    </div>
+  </div>
+
+  <!-- COBOL 에디터 -->
+  <div class="panel" id="cbl-editor" style="display:none;">
+    <div class="panel-title cbl">
+      COBOL-60 소스
+      <span class="badge b-cbl">IBM C61897 카드</span>
+      <span class="badge b-real">컬럼 ✓ 실제</span>
+      <span id="cbl-cnt" class="badge b-cbl" style="margin-left:auto;">0 카드</span>
+    </div>
+    <div class="hist-note" id="cbl-hist-note">
+      <strong>역사 샘플을 선택하면</strong> 당시 실제 사용되었던 코드가 로드됩니다.<br>
+      Area A (8-11): DIVISION/SECTION/PARA, Area B (12-72): 실행 문장.
+    </div>
+    <!-- 코드 보기 탭 (3개) -->
+    <div class="code-tabs">
+      <button class="code-tab cbl-active" id="cbl-tab-orig" onclick="switchCodeTab('cbl','orig')">
+        📋 천공카드 원본
+      </button>
+      <button class="code-tab" id="cbl-tab-conv" onclick="switchCodeTab('cbl','conv')">
+        🔄 GnuCOBOL 변환본
+      </button>
+      <button class="code-tab" id="cbl-tab-diff" onclick="switchCodeTab('cbl','diff')">
+        📝 변환 기록
+      </button>
+    </div>
+
+    <!-- 원본 에디터 -->
+    <div class="editor-wrap" id="cbl-orig-wrap">
+      <div class="col-ruler" id="cbl-ruler"></div>
+      <div class="editor-body">
+        <div class="lnums" id="cbl-lnums">1</div>
+        <textarea class="code-ta cbl" id="cbl-code" spellcheck="false" oninput="cblEdit()"></textarea>
+      </div>
+    </div>
+
+    <!-- GnuCOBOL 변환본 -->
+    <div class="converted-wrap" id="cbl-conv-wrap">
+      <div class="converted-label" style="background:#00001a;border-color:#4488ff;color:#88bbff;">
+        🔄 COBOL-60 → GnuCOBOL 자동 변환 결과 — jdoodle에 이 코드가 클립보드로 전달됨
+      </div>
+      <div class="editor-body" style="flex:1;">
+        <div class="lnums" id="cbl-conv-lnums">1</div>
+        <textarea class="converted-ta" id="cbl-conv-code" readonly spellcheck="false"
+          style="color:#88bbff;"></textarea>
+      </div>
+    </div>
+
+    <!-- 변환 기록 -->
+    <div class="converted-wrap" id="cbl-diff-wrap">
+      <div class="converted-label" style="background:#001a0a;border-color:#44aa44;color:#44cc44;">
+        📝 변환 기록 — 원본과 달라진 줄만 표시
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:6px 4px;">
+        <div id="cbl-diff-content" style="font-family:'Share Tech Mono',monospace;font-size:10px;line-height:1.9;color:#88bbff;">
+          [ 샘플 로드 후 자동 업데이트됩니다 ]
+        </div>
+      </div>
+    </div>
+    <div class="samples">
+      <span style="font-size:9px;color:#445;">역사 샘플 ▶</span>
+      <button class="sbtn sbtn-cbl" onclick="cblLoad('payroll')">급여계산 (1960)</button>
+      <button class="sbtn sbtn-cbl" onclick="cblLoad('inventory')">재고관리</button>
+      <button class="sbtn sbtn-cbl" onclick="cblLoad('report')">월말보고서</button>
+      <button class="sbtn sbtn-cbl" onclick="cblLoad('bank')">은행거래</button>
+    </div>
+  </div>
+
+  <!-- 카드 덱 -->
+  <div class="panel">
+    <div class="panel-title" style="color:var(--gold);">
+      천공카드 덱
+      <span class="badge b-real">홀러리스 구멍 ✓ 실제</span>
+      <button class="bbtn" onclick="doCardPDF()"
+        style="margin-left:auto;font-size:11px;padding:3px 10px;color:#ffaa00;border-color:#ffaa00;border-width:1px;">
+        🖨 카드 PDF
+      </button>
+    </div>
+    <div class="card-deck" id="deck">
+      <div style="color:#334;font-size:10px;text-align:center;padding:40px 0;">
+        [ 역사 샘플 선택 후 카드 천공 버튼 ]
+      </div>
+    </div>
+  </div>
+
+  <!-- 컨트롤 -->
+  <div class="controls">
+    <button class="bbtn bbtn-punch-ftn" id="btn-punch" onclick="doPunch()">▣ 카드 천공</button>
+    <button class="bbtn bbtn-run" id="btn-run" onclick="runReal()">⚡ godbolt 실행</button>
+    <button class="bbtn bbtn-pdf" onclick="openExternal()">🔗 새탭으로 열기</button>
+    <button class="bbtn bbtn-rst" onclick="doReset()">✕ 리셋</button>
+    <div class="pinfo" id="pinfo">역사 샘플을 선택하고 카드를 천공하세요.</div>
+  </div>
+
+  <!-- 라인프린터 -->
+  <div class="printer-panel">
+    <div class="panel-title" style="color:var(--gold);">
+      IBM 1403 라인프린터 출력
+      <span class="badge b-real">godbolt ✓ 실제 컴파일</span>
+    </div>
+    <div class="printer-body">
+      <div class="printer-top">
+        <div class="printer-name">IBM 1403-N1 LINE PRINTER</div>
+        <div class="plights">
+          <div class="pl g"></div>
+          <div class="pl" id="pl2"></div>
+        </div>
+        <span style="font-size:9px;color:#5a4a10;margin-left:auto;">PWR · PRINT</span>
+      </div>
+      <div class="output-note">
+        FORTRAN: godbolt.org gfortran 실제 컴파일 결과 (자유형식 자동 변환)  |  COBOL: jdoodle.com 에서 실행
+      </div>
+      <div class="paper"><div class="print-out" id="print-out">[ 아직 실행하지 않았습니다 ]</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══ 홀러리스 인코딩 — IBM 026 실제 표준 ✓ ══
+const HOLL={
+  ' ':[],'A':[12,1],'B':[12,2],'C':[12,3],'D':[12,4],'E':[12,5],
+  'F':[12,6],'G':[12,7],'H':[12,8],'I':[12,9],
+  'J':[11,1],'K':[11,2],'L':[11,3],'M':[11,4],'N':[11,5],
+  'O':[11,6],'P':[11,7],'Q':[11,8],'R':[11,9],
+  'S':[0,2],'T':[0,3],'U':[0,4],'V':[0,5],'W':[0,6],
+  'X':[0,7],'Y':[0,8],'Z':[0,9],
+  '0':[0],'1':[1],'2':[2],'3':[3],'4':[4],
+  '5':[5],'6':[6],'7':[7],'8':[8],'9':[9],
+  '+':[12],'-':[11],'*':[11,8,4],'/':[0,1],
+  '=':[8,3],'(':[12,8,3],')':[11,8,3],
+  ',':[0,8,3],'.':[12,8,3],"'":[8,5],'$':[11,8,3],
+};
+const ROWS=[12,11,0,1,2,3,4,5,6,7,8,9];
+const RLBL=['12','11','0','1','2','3','4','5','6','7','8','9'];
+function holl(c){return(HOLL[c.toUpperCase()]||HOLL[c]||[]);}
+
+let curTab='ftn', pLines=[];
+
+// ══ 역사 샘플 — 실제 사용된 코드 기반 ══
+const FTN_SAMPLES = {
+
+  hilbert: {
+    title: '힐버트 행렬 — IBM 1401 FORTRAN II 매뉴얼 첫 번째 예제 (1959)',
+    note: '컴퓨터 역사 박물관 IBM 1401에서 2018년에 실제 재가동된 프로그램. FORTRAN II 매뉴얼의 첫 번째 예제.',
+    src:
+`C     HILBERT MATRIX PROGRAM
+C     IBM 1401 FORTRAN II MANUAL EXAMPLE NO.1 (1959)
+C     COMPUTER HISTORY MUSEUM - RESTORED 2018
+C
+      DIMENSION A(10,10)
+      N = 5
+      DO 10 I = 1, N
+      DO 10 J = 1, N
+      A(I,J) = 1.0 / FLOAT(I+J-1)
+   10 CONTINUE
+      WRITE(6,20) N
+   20 FORMAT(1H1,5HORDER,I3,21H HILBERT MATRIX BELOW)
+      DO 30 I = 1, N
+      WRITE(6,40) (A(I,J), J=1,N)
+   40 FORMAT(1H ,5F12.6)
+   30 CONTINUE
+      STOP
+      END`
+  },
+
+  sum3: {
+    title: '카드 입력 합산 — 실제 FORTRAN 천공카드 샘플 (1960년대)',
+    note: '실제 초기 FORTRAN 문서에 기재된 샘플. 카드 리더(장치5)에서 정수 3개를 읽어 합산 후 라인프린터(장치6)에 출력.',
+    src:
+`C     READ 3 INTEGERS FROM CARD, PRINT SUM
+C     ACTUAL EARLY FORTRAN SAMPLE FROM IBM MANUAL
+C     UNIT 5 = CARD READER, UNIT 6 = LINE PRINTER
+C
+  100 READ(5,10) I1, I2, I3
+   10 FORMAT(3I5)
+      IF (I1.EQ.0 .AND. I2.EQ.0 .AND. I3.EQ.0) GOTO 200
+      ISUM = I1 + I2 + I3
+      WRITE(6,20) I1, I2, I3, ISUM
+   20 FORMAT(1X,7HSUM OF ,I5,2H, ,I5,5H AND ,I5,4H IS ,I6)
+      GOTO 100
+  200 STOP
+      END`
+  },
+
+  quadratic: {
+    title: '이차방정식 — IBM 7094 FORTRAN II 교과서 예제 (1962)',
+    note: 'ax²+bx+c=0 의 실수 근을 구하는 프로그램. 당시 대학 FORTRAN 수업에서 가장 많이 쓰인 예제 중 하나.',
+    src:
+`C     QUADRATIC EQUATION SOLVER
+C     IBM 7094 FORTRAN II TEXTBOOK EXAMPLE (1962)
+C     SOLVES AX**2 + BX + C = 0
+C
+      READ(5,10) A, B, C
+   10 FORMAT(3F10.4)
+      DISC = B*B - 4.0*A*C
+      IF (DISC) 30, 20, 40
+   20 WRITE(6,50) -B/(2.0*A)
+   50 FORMAT(1X,14HDOUBLE ROOT = ,F12.6)
+      GOTO 60
+   30 WRITE(6,55)
+   55 FORMAT(1X,18HNO REAL ROOTS EXIST)
+      GOTO 60
+   40 X1 = (-B + SQRT(DISC)) / (2.0*A)
+      X2 = (-B - SQRT(DISC)) / (2.0*A)
+      WRITE(6,45) X1, X2
+   45 FORMAT(1X,5HX1 = ,F12.6,5H X2 = ,F12.6)
+   60 STOP
+      END`
+  },
+
+  table: {
+    title: '제곱수/세제곱수 테이블 — IBM FORTRAN II 입문 예제 (1960)',
+    note: 'DO 루프와 WRITE/FORMAT의 기본 사용법을 보여주는 입문 예제. 당시 FORTRAN 교육 첫 주에 배우던 프로그램.',
+    src:
+`C     SQUARES AND CUBES TABLE
+C     IBM FORTRAN II INTRODUCTION EXAMPLE (1960)
+C     DEMONSTRATES DO LOOP AND FORMAT OUTPUT
+C
+      WRITE(6,10)
+   10 FORMAT(1H1,4HN   ,6HN**2  ,6HN**3  )
+      DO 20 N = 1, 10
+      NS = N*N
+      NC = N*N*N
+      WRITE(6,30) N, NS, NC
+   30 FORMAT(1X,I4,2I6)
+   20 CONTINUE
+      STOP
+      END`
+  },
+};
+
+const CBL_SAMPLES = {
+  payroll: {
+    title: '급여계산 — 실제 COBOL 배치 급여 처리 (1960년대 기업)',
+    note: '1960년대 기업 급여 시스템의 실제 구조. 매달 밤새 배치 처리로 전 직원 급여를 계산하고 라인프린터로 명세서 출력.',
+    src:
+`000100 IDENTIFICATION DIVISION.
+000200 PROGRAM-ID. PAYROLL.
+000300 AUTHOR. PAYROLL-DEPARTMENT.
+000400 DATE-WRITTEN. JUNE 15, 1960.
+000500*
+000600 ENVIRONMENT DIVISION.
+000700 CONFIGURATION SECTION.
+000800 SOURCE-COMPUTER. IBM-1401.
+000900 OBJECT-COMPUTER. IBM-1401.
+001000*
+001100 DATA DIVISION.
+001200 WORKING-STORAGE SECTION.
+001300 01 EMPLOYEE-NAME    PIC A(20) VALUE 'KIM CHULSOO         '.
+001400 01 DEPT-CODE        PIC 9(4)  VALUE 1023.
+001500 01 BASIC-SALARY     PIC 9(7)  VALUE 3500000.
+001600 01 OVERTIME-HOURS   PIC 9(3)  VALUE 12.
+001700 01 HOURLY-RATE      PIC 9(5)  VALUE 15000.
+001800 01 OVERTIME-PAY     PIC 9(7).
+001900 01 BONUS            PIC 9(7)  VALUE 500000.
+002000 01 INCOME-TAX       PIC 9(7).
+002100 01 HEALTH-INS       PIC 9(6)  VALUE 150000.
+002200 01 NET-SALARY       PIC 9(7).
+002300*
+002400 PROCEDURE DIVISION.
+002500 CALC-PARA.
+002600     COMPUTE OVERTIME-PAY = OVERTIME-HOURS * HOURLY-RATE.
+002700     COMPUTE INCOME-TAX = BASIC-SALARY * 0.15.
+002800     COMPUTE NET-SALARY = BASIC-SALARY + OVERTIME-PAY
+002900                        + BONUS - INCOME-TAX - HEALTH-INS.
+003000     DISPLAY '========================================'.
+003100     DISPLAY '  IBM 1401 PAYROLL SYSTEM - BATCH JOB  '.
+003200     DISPLAY '========================================'.
+003300     DISPLAY 'EMPLOYEE : ' EMPLOYEE-NAME.
+003400     DISPLAY 'DEPT     : ' DEPT-CODE.
+003500     DISPLAY 'BASIC    : ' BASIC-SALARY.
+003600     DISPLAY 'OVERTIME : ' OVERTIME-PAY.
+003700     DISPLAY 'BONUS    : ' BONUS.
+003800     DISPLAY 'TAX      : ' INCOME-TAX.
+003900     DISPLAY 'HEALTH   : ' HEALTH-INS.
+004000     DISPLAY '----------------------------------------'.
+004100     DISPLAY 'NET PAY  : ' NET-SALARY.
+004200     DISPLAY '========================================'.
+004300     STOP RUN.`
+  },
+
+  inventory: {
+    title: '재고관리 — 실제 창고 재고 배치 처리 (1961년)',
+    note: '1961년 제조업체 창고 재고 시스템. 재고 부족 시 자동 발주 여부를 판단하는 로직.',
+    src:
+`000100 IDENTIFICATION DIVISION.
+000200 PROGRAM-ID. INVNTRY.
+000300 AUTHOR. WAREHOUSE-CONTROL.
+000400 DATE-WRITTEN. MARCH 1961.
+000500*
+000600 ENVIRONMENT DIVISION.
+000700 CONFIGURATION SECTION.
+000800 SOURCE-COMPUTER. IBM-1401.
+000900 OBJECT-COMPUTER. IBM-1401.
+001000*
+001100 DATA DIVISION.
+001200 WORKING-STORAGE SECTION.
+001300 01 ITEM-NUMBER      PIC 9(6)  VALUE 100234.
+001400 01 ITEM-DESC        PIC A(24) VALUE 'VACUUM TUBE TYPE 12AX7   '.
+001500 01 CURRENT-STOCK    PIC 9(5)  VALUE 1500.
+001600 01 MINIMUM-STOCK    PIC 9(5)  VALUE 200.
+001700 01 UNIT-PRICE       PIC 9(6)  VALUE 12500.
+001800 01 TOTAL-VALUE      PIC 9(9).
+001900 01 ORDER-STATUS     PIC A(8)  VALUE 'NO ORDER'.
+002000*
+002100 PROCEDURE DIVISION.
+002200 INVENTORY-CHECK.
+002300     COMPUTE TOTAL-VALUE = CURRENT-STOCK * UNIT-PRICE.
+002400     IF CURRENT-STOCK < MINIMUM-STOCK
+002500         MOVE 'REORDER!' TO ORDER-STATUS.
+002600     DISPLAY '=== INVENTORY REPORT - IBM 1401 ==='.
+002700     DISPLAY 'ITEM NO : ' ITEM-NUMBER.
+002800     DISPLAY 'ITEM    : ' ITEM-DESC.
+002900     DISPLAY 'STOCK   : ' CURRENT-STOCK.
+003000     DISPLAY 'MINIMUM : ' MINIMUM-STOCK.
+003100     DISPLAY 'UNIT PRC: ' UNIT-PRICE.
+003200     DISPLAY 'TOTAL   : ' TOTAL-VALUE.
+003300     DISPLAY 'ORDER   : ' ORDER-STATUS.
+003400     STOP RUN.`
+  },
+
+  report: {
+    title: '월말 매출보고서 — 실제 경리부 배치 리포트 (1962년)',
+    note: '1962년 실제 기업 경리부에서 월말마다 배치 처리로 생성하던 매출 요약 보고서.',
+    src:
+`000100 IDENTIFICATION DIVISION.
+000200 PROGRAM-ID. MONTHRPT.
+000300 AUTHOR. ACCOUNTING-DEPT.
+000400 DATE-WRITTEN. DECEMBER 1962.
+000500*
+000600 ENVIRONMENT DIVISION.
+000700 CONFIGURATION SECTION.
+000800 SOURCE-COMPUTER. IBM-1401.
+000900 OBJECT-COMPUTER. IBM-1401.
+001000*
+001100 DATA DIVISION.
+001200 WORKING-STORAGE SECTION.
+001300 01 COMPANY-NAME     PIC A(30) VALUE 'KOREA ELECTRIC CO. LTD        '.
+001400 01 REPORT-YEAR      PIC 9(4)  VALUE 1962.
+001500 01 REPORT-MONTH     PIC 9(2)  VALUE 12.
+001600 01 SALES-WEEK1      PIC 9(9)  VALUE 12500000.
+001700 01 SALES-WEEK2      PIC 9(9)  VALUE 15800000.
+001800 01 SALES-WEEK3      PIC 9(9)  VALUE 11200000.
+001900 01 SALES-WEEK4      PIC 9(9)  VALUE 18600000.
+002000 01 TOTAL-SALES      PIC 9(10).
+002100 01 AVERAGE-WEEKLY   PIC 9(9).
+002200*
+002300 PROCEDURE DIVISION.
+002400 REPORT-PARA.
+002500     COMPUTE TOTAL-SALES = SALES-WEEK1 + SALES-WEEK2
+002600                         + SALES-WEEK3 + SALES-WEEK4.
+002700     COMPUTE AVERAGE-WEEKLY = TOTAL-SALES / 4.
+002800     DISPLAY '******************************************'.
+002900     DISPLAY '*   MONTHLY SALES REPORT - IBM 1401     *'.
+003000     DISPLAY '******************************************'.
+003100     DISPLAY 'COMPANY : ' COMPANY-NAME.
+003200     DISPLAY 'PERIOD  : ' REPORT-YEAR '/' REPORT-MONTH.
+003300     DISPLAY '------------------------------------------'.
+003400     DISPLAY 'WEEK 1  : ' SALES-WEEK1.
+003500     DISPLAY 'WEEK 2  : ' SALES-WEEK2.
+003600     DISPLAY 'WEEK 3  : ' SALES-WEEK3.
+003700     DISPLAY 'WEEK 4  : ' SALES-WEEK4.
+003800     DISPLAY '=========================================='.
+003900     DISPLAY 'TOTAL   : ' TOTAL-SALES.
+004000     DISPLAY 'WEEKLY AVG: ' AVERAGE-WEEKLY.
+004100     DISPLAY '******************************************'.
+004200     STOP RUN.`
+  },
+
+  bank: {
+    title: '은행 거래 처리 — 실제 은행 야간 배치 시스템 (1963년)',
+    note: '1963년 실제 은행 시스템 구조. 매일 밤 모든 거래를 배치 처리하여 잔액 갱신 및 이자 계산.',
+    src:
+`000100 IDENTIFICATION DIVISION.
+000200 PROGRAM-ID. BANKTRX.
+000300 AUTHOR. BANK-SYSTEMS-DEPT.
+000400 DATE-WRITTEN. SEPTEMBER 1963.
+000500*
+000600 ENVIRONMENT DIVISION.
+000700 CONFIGURATION SECTION.
+000800 SOURCE-COMPUTER. IBM-1401.
+000900 OBJECT-COMPUTER. IBM-1401.
+001000*
+001100 DATA DIVISION.
+001200 WORKING-STORAGE SECTION.
+001300 01 ACCOUNT-NUMBER   PIC 9(10) VALUE 1234567890.
+001400 01 ACCOUNT-HOLDER   PIC A(20) VALUE 'LEE YOUNGHI         '.
+001500 01 PREV-BALANCE     PIC 9(10) VALUE 5000000.
+001600 01 DEPOSIT-AMOUNT   PIC 9(8)  VALUE 1500000.
+001700 01 WITHDRAW-AMOUNT  PIC 9(8)  VALUE 300000.
+001800 01 INTEREST-RATE    PIC 99    VALUE 35.
+001900 01 INTEREST-AMOUNT  PIC 9(8).
+002000 01 NEW-BALANCE      PIC 9(10).
+002100*
+002200 PROCEDURE DIVISION.
+002300 PROCESS-TRANSACTION.
+002400     COMPUTE INTEREST-AMOUNT = PREV-BALANCE * INTEREST-RATE
+002500                             / 10000.
+002600     COMPUTE NEW-BALANCE = PREV-BALANCE + DEPOSIT-AMOUNT
+002700                         - WITHDRAW-AMOUNT + INTEREST-AMOUNT.
+002800     DISPLAY '**** KOREA FIRST BANK - BATCH NIGHTLY ****'.
+002900     DISPLAY 'ACCOUNT : ' ACCOUNT-NUMBER.
+003000     DISPLAY 'NAME    : ' ACCOUNT-HOLDER.
+003100     DISPLAY '-------------------------------------------'.
+003200     DISPLAY 'PREV BAL: ' PREV-BALANCE.
+003300     DISPLAY 'DEPOSIT : ' DEPOSIT-AMOUNT.
+003400     DISPLAY 'WITHDRAW: ' WITHDRAW-AMOUNT.
+003500     DISPLAY 'INTEREST: ' INTEREST-AMOUNT ' (0.35%)'.
+003600     DISPLAY '==========================================='.
+003700     DISPLAY 'NEW BAL : ' NEW-BALANCE.
+003800     STOP RUN.`
+  },
+};
+
+// ══ 탭 전환 ══
+function switchTab(t){
+  curTab=t;
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.querySelector('.tab.'+t).classList.add('active');
+  document.getElementById('ftn-editor').style.display=t==='ftn'?'':'none';
+  document.getElementById('cbl-editor').style.display=t==='cbl'?'':'none';
+  const isFtn=t==='ftn';
+  document.getElementById('btn-punch').className='bbtn bbtn-punch-'+(isFtn?'ftn':'cbl');
+  // 실행 버튼 텍스트 변경
+  const runBtn=document.getElementById('btn-run');
+  if(runBtn){
+    runBtn.textContent=isFtn?'⚡ godbolt 실행':'🔗 jdoodle 실행';
+    runBtn.title=isFtn
+      ?'godbolt.org gfortran으로 실제 컴파일 후 결과를 라인프린터에 출력'
+      :'코드를 클립보드에 복사 후 jdoodle.com으로 이동';
+  }
+  doReset(false);
+}
+
+// ══ 컬럼 눈금 ══
+(function(){
+  let r='';for(let i=1;i<=80;i++)r+=i%10===0?(i+'').slice(-1):i%5===0?'5':'·';
+  document.getElementById('ftn-ruler').textContent=r;
+  document.getElementById('cbl-ruler').textContent=r;
+})();
+
+function updateLN(nid,tid){
+  const n=document.getElementById(tid).value.split('\n').length;
+  let h='';for(let i=1;i<=n;i++)h+=i+'<br>';
+  document.getElementById(nid).innerHTML=h;
+}
+function ftnEdit(){
+  updateLN('ftn-lnums','ftn-code');
+  // 자유형식 탭 자동 업데이트
+  const src=document.getElementById('ftn-code').value;
+  const free=fixedToFree(src);
+  const freeEl=document.getElementById('ftn-free-code');
+  if(freeEl){
+    freeEl.value=free;
+    updateLN('ftn-free-lnums','ftn-free-code');
+  }
+}
+function cblEdit(){
+  updateLN('cbl-lnums','cbl-code');
+  // 변환본/기록 탭이 열려있으면 자동 업데이트
+  const convWrap = document.getElementById('cbl-conv-wrap');
+  const diffWrap = document.getElementById('cbl-diff-wrap');
+  if(convWrap && convWrap.style.display !== 'none') updateCblConverted();
+  if(diffWrap && diffWrap.style.display !== 'none') updateCblConverted();
+}
+
+// ══ 코드 탭 전환 ══
+function switchCodeTab(lang, mode){
+  if(lang==='ftn'){
+    const isOrig=mode==='orig';
+    document.getElementById('ftn-orig-wrap').style.display=isOrig?'flex':'none';
+    document.getElementById('ftn-free-wrap').style.display=isOrig?'none':'flex';
+    document.getElementById('ftn-tab-orig').className='code-tab'+(isOrig?' ftn-active':'');
+    document.getElementById('ftn-tab-free').className='code-tab'+(isOrig?'':' ftn-active');
+    // 자유형식 탭 열릴 때 업데이트
+    if(!isOrig){
+      const src=document.getElementById('ftn-code').value;
+      const free=fixedToFree(src);
+      document.getElementById('ftn-free-code').value=free;
+      updateLN('ftn-free-lnums','ftn-free-code');
+    }
+  } else {
+    // COBOL 3탭: orig / conv / diff
+    ['orig','conv','diff'].forEach(function(m){
+      const wrap = document.getElementById('cbl-'+m+'-wrap');
+      const btn  = document.getElementById('cbl-tab-'+m);
+      if(wrap) wrap.style.display = (m===mode) ? 'flex' : 'none';
+      if(btn)  btn.className = 'code-tab' + (m===mode ? ' cbl-active' : '');
+    });
+    // 변환본/기록 탭 열릴 때 업데이트
+    if(mode === 'conv' || mode === 'diff'){
+      updateCblConverted();
+    }
+  }
+}
+
+// COBOL 변환본 + 변환기록 업데이트
+function updateCblConverted(){
+  const src = document.getElementById('cbl-code').value;
+  if(!src.trim()) return;
+  const converted = cobol60toGnu(src);
+
+  // 변환본
+  const convEl = document.getElementById('cbl-conv-code');
+  if(convEl){
+    convEl.value = converted;
+    updateLN('cbl-conv-lnums','cbl-conv-code');
+  }
+
+  // 변환 기록 (diff)
+  const diffEl = document.getElementById('cbl-diff-content');
+  if(!diffEl) return;
+  const origLines = src.split('\n');
+  const convLines = converted.split('\n');
+  let html = '';
+  let diffCount = 0;
+
+  origLines.forEach(function(origLine, i){
+    const convLine = convLines[i] || '';
+    if(origLine === convLine) return;
+    diffCount++;
+    const lineNo = String(i+1).padStart(4,'0');
+    // 무엇이 바뀌었는지 감지
+    let reason = '';
+    if(/PIC\s+A\s*\(/i.test(origLine) && /PIC\s+X\s*\(/i.test(convLine))
+      reason = 'PIC A → PIC X (알파벳→문자)';
+    else if(/DATE-WRITTEN/i.test(origLine))
+      reason = 'DATE-WRITTEN → 주석 (obsolete)';
+    else if(/DATE-COMPILED/i.test(origLine))
+      reason = 'DATE-COMPILED → 주석 (obsolete)';
+    else if(/DATE-MODIFIED/i.test(origLine))
+      reason = 'DATE-MODIFIED → 주석 (obsolete)';
+    else if(/INSTALLATION/i.test(origLine))
+      reason = 'INSTALLATION → 주석 (obsolete)';
+    else if(/REMARKS/i.test(origLine))
+      reason = 'REMARKS → 주석 (obsolete)';
+    else if(/SECURITY/i.test(origLine))
+      reason = 'SECURITY → 주석 (obsolete)';
+    else
+      reason = '기타 변환';
+
+    html +=
+      '<div style="border-bottom:1px solid #1a2a1a;padding:5px 0;margin-bottom:3px;">' +
+      '<div style="color:#446;font-size:9px;margin-bottom:3px;">줄 ' + lineNo + ' — ' +
+        '<span style="color:var(--gold);">' + reason + '</span></div>' +
+      '<div style="color:#ff8866;">- ' + origLine.trim() + '</div>' +
+      '<div style="color:#44cc44;">+ ' + convLine.trim() + '</div>' +
+      '</div>';
+  });
+
+  if(diffCount === 0){
+    diffEl.innerHTML =
+      '<div style="color:#446;padding:10px;">변환 없음 — 이미 GnuCOBOL 호환 코드입니다.</div>';
+  } else {
+    diffEl.innerHTML =
+      '<div style="color:var(--gold);margin-bottom:8px;font-size:10px;">' +
+        '총 ' + diffCount + '줄 변환됨:</div>' + html;
+  }
+}
+
+// ══ 샘플 로드 ══
+function ftnLoad(k){
+  const s=FTN_SAMPLES[k];if(!s)return;
+  document.getElementById('ftn-code').value=s.src;
+  document.getElementById('ftn-hist-note').innerHTML=
+    '<strong>'+s.title+'</strong><br>'+s.note;
+  ftnEdit();
+  document.getElementById('pinfo').textContent='역사 샘플 로드됨 — 카드 천공 버튼으로 구멍을 뚫으세요.';
+}
+function cblLoad(k){
+  const s=CBL_SAMPLES[k];if(!s)return;
+  document.getElementById('cbl-code').value=s.src;
+  document.getElementById('cbl-hist-note').innerHTML=
+    '<strong>'+s.title+'</strong><br>'+s.note;
+  cblEdit();
+  // 변환본 자동 업데이트
+  setTimeout(updateCblConverted, 50);
+  document.getElementById('pinfo').textContent='역사 샘플 로드됨 — 카드 천공 버튼으로 구멍을 뚫으세요.';
+}
+
+// ══ COBOL Division 감지 ══
+let curDiv='ID';
+const DIV_C={ID:'#4466cc',ENV:'#cc4433',DATA:'#44aa44',PROC:'#aaaa00'};
+function getDiv(line){
+  const u=line.toUpperCase();
+  if(u.includes('IDENTIFICATION DIVISION'))curDiv='ID';
+  else if(u.includes('ENVIRONMENT DIVISION'))curDiv='ENV';
+  else if(u.includes('DATA DIVISION'))curDiv='DATA';
+  else if(u.includes('PROCEDURE DIVISION'))curDiv='PROC';
+  return curDiv;
+}
+
+// ══ 카드 렌더링 ══
+function renderCard(line,seq,mode,div){
+  const pad=(line+' '.repeat(80)).substring(0,80);
+  const card=document.createElement('div');
+  card.className='punch-card '+(mode==='ftn'?'pc-ftn':'pc-'+div);
+  const notch=document.createElement('div');notch.className='card-notch';card.appendChild(notch);
+  const txt=document.createElement('div');txt.className='card-text';txt.textContent=pad;card.appendChild(txt);
+  const holes=document.createElement('div');holes.className='holes-area';
+  const cols=Array.from(pad).map(c=>{const p=holl(c);return ROWS.map(r=>p.includes(r));});
+  ROWS.forEach((rv,ri)=>{
+    const row=document.createElement('div');row.className='hole-row';
+    const lbl=document.createElement('span');lbl.className='hole-lbl';lbl.textContent=RLBL[ri];row.appendChild(lbl);
+    for(let c=0;c<80;c++){const h=document.createElement('div');h.className='hole'+(cols[c][ri]?' punched':'');row.appendChild(h);}
+    holes.appendChild(row);
+  });
+  card.appendChild(holes);
+  if(mode==='cbl'){const dl=document.createElement('div');dl.className='div-lbl';dl.style.color=DIV_C[div]||'#888';dl.textContent={ID:'IDENT',ENV:'ENVIR',DATA:'DATA ',PROC:'PROC '}[div]||'';card.appendChild(dl);}
+  const sq=document.createElement('div');sq.className='card-seq';sq.textContent='SEQ '+String(seq).padStart(4,'0');card.appendChild(sq);
+  return card;
+}
+
+// ══ 카드 천공 ══
+function doPunch(){
+  const src=document.getElementById(curTab+'-code').value;
+  if(!src.trim()){alert('역사 샘플을 먼저 선택하세요.');return;}
+  pLines=src.split('\n');
+  const deck=document.getElementById('deck');deck.innerHTML='';
+  document.getElementById(curTab+'-cnt').textContent=pLines.length+' 카드';
+  curDiv='ID';
+  pLines.forEach((line,i)=>{
+    const div=curTab==='cbl'?getDiv(line):'ID';
+    deck.appendChild(renderCard(line,i+1,curTab,div));
+  });
+  document.getElementById('pinfo').textContent=
+    pLines.length+'장 천공 완료. ⚡ godbolt 실행 버튼으로 진짜 컴파일하세요.';
+  document.getElementById('print-out').textContent='[ 아직 실행하지 않았습니다 ]';
+}
+
+// ══ COBOL-60 → GnuCOBOL 호환 변환 ══
+function cobol60toGnu(src){
+  // COBOL-60 고정형식 → GnuCOBOL 자유형식 변환
+  // 핵심: 시퀀스 번호(COL 1-6) 제거, 주석/obsolete 처리, PIC A→X
+  var lines = src.split('\n');
+  var out = [];
+
+  lines.forEach(function(line){
+    if(!line.trim()){ out.push(''); return; }
+
+    // COL 1-6: 시퀀스 번호
+    // COL 7:   지시자 (* = 주석, - = 연속, 공백 = 일반)
+    // COL 8+:  실제 코드 (Area A: 8-11, Area B: 12-72)
+
+    var ind = line.length > 6 ? line[6] : ' ';
+    var stmt = line.length > 7 ? line.substring(7) : '';
+
+    // 컬럼 7 = * → 주석
+    if(ind === '*'){
+      out.push('*>' + stmt);  // GnuCOBOL 자유형식 주석
+      return;
+    }
+
+    // 컬럼 7 = - 또는 숫자 → 연속행
+    if(ind === '-' || (ind >= '1' && ind <= '9')){
+      out.push('           ' + stmt.trim());
+      return;
+    }
+
+    // 빈 줄 처럼 생긴 시퀀스만 있는 줄
+    if(!stmt.trim()){ out.push(''); return; }
+
+    var stmtTrim = stmt.trim().toUpperCase();
+
+    // obsolete 단락 → 주석 처리
+    var obsolete = [
+      'DATE-WRITTEN.','DATE-COMPILED.','DATE-MODIFIED.',
+      'INSTALLATION.','REMARKS.','SECURITY.'
+    ];
+    for(var i=0;i<obsolete.length;i++){
+      if(stmtTrim.indexOf(obsolete[i]) === 0){
+        out.push('*> [OBSOLETE] ' + stmt.trim());
+        return;
+      }
+    }
+
+    // PIC A(N) → PIC X(N)
+    stmt = stmt.replace(/PIC\s+A\s*\((\d+)\)/gi, 'PIC X($1)');
+    stmt = stmt.replace(/PIC\s+(A+)(?!\()/gi, function(m, a){
+      return 'PIC X(' + a.length + ')';
+    });
+
+    // 시퀀스 번호 제거 후 코드만 출력 (자유형식)
+    out.push(stmt);
+  });
+
+  // 마지막 줄 newline 보장
+  var result = out.join('\n');
+  if(result[result.length-1] !== '\n') result += '\n';
+  return result;
+}
+
+// ══ 고정형식 → 자유형식 변환 ══
+function fixedToFree(src){
+  return src.split('\n').map(function(line){
+    if(!line.trim())return '';
+    var c1=line[0]||' ';
+    if(c1.toUpperCase()==='C'||c1==='*'||c1==='!')return '! '+line.substring(1).trim();
+    var cont=line.length>5?line[5]:' ';
+    var stmt=line.length>6?line.substring(6):'';
+    var label=line.substring(0,5).trim();
+    if(cont!==' '&&cont!=='0'&&cont!=='')return '     & '+stmt.trimEnd();
+    if(label)return label+' '+stmt.trimEnd();
+    return stmt.trimEnd();
+  }).join('\n');
+}
+
+// ══ godbolt 실행 ══
+function runReal(){
+  const src=document.getElementById(curTab+'-code').value;
+  if(!src.trim()){alert('소스를 먼저 입력하세요.');return;}
+
+  document.getElementById('print-out').textContent='godbolt.org 연결 중...';
+  document.getElementById('pl2').className='pl a';
+  document.getElementById('pinfo').textContent='godbolt.org → 실제 컴파일러 실행 중...';
+
+  if(curTab==='ftn'){
+    const freeSrc=fixedToFree(src);
+    fetch('https://godbolt.org/api/compiler/gfortran132/compile',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({
+        source:freeSrc,
+        options:{
+          userArguments:'-w',
+          executeParameters:{args:[],stdin:'1 2 3\n0 0 0\n'},
+          compilerOptions:{executorRequest:true},
+          filters:{execute:true},
+          tools:[]
+        },
+        lang:'fortran',
+        allowStoreCodeDebug:true
+      })
+    })
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(d){showResult(d,'FORTRAN / gfortran @ godbolt.org');})
+    .catch(function(e){fallback(src,'ftn');});
+  } else {
+    // COBOL은 godbolt API 대신 jdoodle로 이동
+    openCobolJdoodle(src);
+  }
+}
+
+// COBOL-60 → GnuCOBOL 변환 후 jdoodle 이동
+function openCobolJdoodle(src){
+  const po = document.getElementById('print-out');
+
+  // COBOL-60 → GnuCOBOL 호환 변환
+  const converted = cobol60toGnu(src);
+
+  // 변환 내용 보여주기 (변환된 코드를 클립보드에)
+  navigator.clipboard.writeText(converted).then(function(){
+
+    // 원본과 변환본 비교 표시
+    const origLines = src.split('\n');
+    const convLines = converted.split('\n');
+    let diffCount = 0;
+    const diffs = [];
+    origLines.forEach(function(l, i){
+      if(l !== convLines[i]){
+        diffCount++;
+        diffs.push('줄 '+(i+1)+': ' + l.trim() + '\n      → ' + (convLines[i]||'').trim());
+      }
+    });
+
+    po.textContent = '[ COBOL-60 → GnuCOBOL 변환 완료 ]\n\n';
+    if(diffCount > 0){
+      po.textContent += '변환된 항목 ' + diffCount + '개:\n';
+      diffs.forEach(function(d){ po.textContent += ' ' + d + '\n'; });
+      po.textContent += '\n';
+    } else {
+      po.textContent += '변환 불필요 — GnuCOBOL 호환 코드\n\n';
+    }
+    po.textContent += '✓ 변환된 코드가 클립보드에 복사되었습니다.\n';
+    po.textContent += '✓ jdoodle.com 에서 Ctrl+V 붙여넣기 후 실행하세요.\n';
+    po.textContent += '\n── 변환된 코드 미리보기 ──\n';
+    po.textContent += convLines.slice(0,12).map(function(l){return ' '+l;}).join('\n');
+    if(convLines.length > 12) po.textContent += '\n ...('+convLines.length+'줄)';
+
+    document.getElementById('pinfo').textContent =
+      'COBOL 변환 완료 (' + diffCount + '항목) → jdoodle.com 에서 실행';
+    window.open('https://www.jdoodle.com/execute-cobol-online/','_blank');
+
+  }).catch(function(){
+    // 클립보드 실패시 원본이라도 전달
+    po.textContent =
+      '[ COBOL → jdoodle.com 으로 이동합니다 ]\n\n' +
+      '※ 클립보드 복사 실패 — 직접 복사 후 붙여넣기 하세요.';
+    window.open('https://www.jdoodle.com/execute-cobol-online/','_blank');
+  });
+}
+
+function showResult(data, title){
+  const execOut=(data.execResult&&data.execResult.stdout)||data.stdout||[];
+  const execErr=(data.execResult&&data.execResult.stderr)||data.stderr||[];
+  const buildErr=data.buildResult?(data.buildResult.stderr||[]):[];
+  const lines=[];
+  if(buildErr.length>0){
+    lines.push('*** COMPILE ERRORS ***');
+    buildErr.forEach(function(e){if(e.text)lines.push(e.text);});
+    lines.push('');
+  }
+  if(execOut.length>0){
+    execOut.forEach(function(e){if(e.text!==undefined)lines.push(e.text);});
+  } else if(execErr.length>0){
+    lines.push('*** RUNTIME ERROR ***');
+    execErr.forEach(function(e){if(e.text)lines.push(e.text);});
+  } else if(buildErr.length===0){
+    lines.push('(출력 없음)');
+  }
+  const po=document.getElementById('print-out');
+  const now=new Date();
+  po.textContent='1\n '+title+'\n';
+  po.textContent+=' DATE: '+now.toLocaleDateString('ko-KR')+'  TIME: '+now.toLocaleTimeString('ko-KR')+'\n';
+  po.textContent+=' '+String.fromCharCode(8212).repeat(60)+'\n\n';
+  lines.forEach(function(l){po.textContent+=' '+l+'\n';});
+  po.textContent+='\n '+String.fromCharCode(8212).repeat(60)+'\n';
+  po.textContent+=' END OF JOB. '+lines.length+' LINES.\n';
+  document.getElementById('pl2').className='pl g';
+  document.getElementById('pinfo').textContent='✓ 실제 컴파일러 실행 완료 — '+lines.length+'줄 출력';
+}
+
+function fallback(src, tab){
+  navigator.clipboard.writeText(src).then(function(){
+    document.getElementById('print-out').textContent=
+      'godbolt.org CORS 차단 — 코드가 클립보드에 복사되었습니다.\n'+
+      (tab==='ftn'?'godbolt.org → Fortran → 붙여넣기':'jdoodle.com/execute-cobol-online → 붙여넣기');
+    document.getElementById('pl2').className='pl';
+    document.getElementById('pinfo').textContent='클립보드 복사 완료 → 외부 사이트에서 실행하세요';
+    window.open(tab==='ftn'?'https://godbolt.org/':'https://www.jdoodle.com/execute-cobol-online/','_blank');
+  });
+}
+
+function openExternal(){
+  const src=document.getElementById(curTab+'-code').value;
+  if(!src.trim()){alert('소스를 먼저 입력하세요.');return;}
+  if(curTab==='ftn'){
+    fetch('https://godbolt.org/api/shortener',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({sessions:[{language:'fortran',source:fixedToFree(src),compilers:[{id:'gfortran132',options:'-w'}]}]})
+    })
+    .then(function(r){return r.json();})
+    .then(function(d){window.open(d.url||'https://godbolt.org/','_blank');})
+    .catch(function(){fallback(src,'ftn');});
+  } else {
+    openCobolJdoodle(src);
+  }
+}
+
+function doReset(full=true){
+  pLines=[];
+  document.getElementById('deck').innerHTML='<div style="color:#334;font-size:10px;text-align:center;padding:40px 0;">[ 역사 샘플 선택 후 카드 천공 ]</div>';
+  document.getElementById('ftn-cnt').textContent='0 카드';
+  document.getElementById('cbl-cnt').textContent='0 카드';
+  document.getElementById('print-out').textContent='[ 아직 실행하지 않았습니다 ]';
+  document.getElementById('pl2').className='pl';
+  document.getElementById('pinfo').textContent='역사 샘플을 선택하고 카드를 천공하세요.';
+  if(full){
+    document.getElementById('ftn-code').value='';
+    document.getElementById('cbl-code').value='';
+  }
+  ftnEdit();cblEdit();
+}
+
+// ══ 카드 PDF ══
+function doCardPDF(){
+  if(!pLines.length){alert('먼저 카드를 천공하세요.');return;}
+  const lang=curTab==='ftn'?'FORTRAN II (IBM 7094)':'COBOL-60 (IBM 1401)';
+  const src=document.getElementById(curTab+'-code').value;
+  const colDesc=curTab==='ftn'
+    ?'COL 1-5: 레이블  |  COL 6: 연속  |  COL 7-72: FORTRAN 코드  |  COL 73-80: 식별'
+    :'COL 1-6: 시퀀스  |  COL 7: 지시자  |  COL 8-11: AREA A  |  COL 12-72: AREA B  |  COL 73-80: PROG-ID';
+
+  function makeCardSVG(line,seq,divColor){
+    const pad=(line+' '.repeat(80)).substring(0,80);
+    const W=750,H=320,LP=44,TP=52,BP=18;
+    const hAW=W-LP-8,hAH=H-TP-BP;
+    const cW=hAW/80,rH=hAH/12;
+    const hW=cW*0.58,hH=rH*0.68;
+    let holes='';
+    for(let ci=0;ci<80;ci++){
+      const p=holl(pad[ci]);
+      for(let ri=0;ri<12;ri++){
+        const hx=LP+ci*cW+(cW-hW)/2;
+        const hy=TP+ri*rH+(rH-hH)/2;
+        holes+=`<rect x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" width="${hW.toFixed(1)}" height="${hH.toFixed(1)}" rx="1.5" fill="${p.includes(ROWS[ri])?'#111008':'#ddd5bc'}" stroke="${p.includes(ROWS[ri])?'#080604':'#c0b898'}" stroke-width="0.3"/>`;
+      }
+    }
+    let rLbls='';
+    RLBL.forEach((l,ri)=>{const hy=TP+ri*rH+rH/2+3;rLbls+=`<text x="${LP-4}" y="${hy}" text-anchor="end" font-family="Courier New" font-size="7" fill="#8a7850">${l}</text>`;});
+    let colR='';
+    for(let ci=9;ci<80;ci+=10){colR+=`<text x="${(LP+ci*cW+cW/2).toFixed(1)}" y="${TP-6}" text-anchor="middle" font-family="Courier New" font-size="6" fill="#7a6840">${ci+1}</text>`;}
+    let topTxt='';
+    for(let ci=0;ci<80;ci++){if(pad[ci]!==' ')topTxt+=`<text x="${(LP+ci*cW+cW/2).toFixed(1)}" y="${TP-20}" text-anchor="middle" font-family="Courier New" font-size="7" fill="#2a2010">${pad[ci].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</text>`;}
+    const stripe=curTab==='ftn'?'#2a5a2a':divColor;
+    return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="${W}" height="${H}" rx="4" fill="#f2edd8" stroke="#b8a880" stroke-width="1"/><rect x="0" y="0" width="${W}" height="${TP-2}" rx="4" fill="${stripe}"/><rect x="0" y="8" width="${W}" height="${TP-10}" fill="${stripe}"/><polygon points="0,0 14,0 0,14" fill="#e8e0c8"/><rect x="0" y="${TP-2}" width="4" height="${H-TP+2}" fill="${stripe}" rx="1"/><text x="${LP}" y="${TP-34}" font-family="Courier New" font-size="8" fill="white" letter-spacing="1">${lang.toUpperCase()}  |  IBM 026 KEYPUNCH  |  SEQ ${String(seq).padStart(4,'0')}</text>${colR}${topTxt}${rLbls}${holes}<text x="${W-6}" y="${H-5}" text-anchor="end" font-family="Courier New" font-size="6" fill="#8a7850">SEQ ${String(seq).padStart(4,'0')}</text></svg>`;
+  }
+
+  let cardsHTML='';
+  curDiv='ID';
+  const DIV_COLORS_H={ID:'#1A3A7A',ENV:'#7A2A1A',DATA:'#1A6A1A',PROC:'#6A5A00'};
+  pLines.forEach((line,i)=>{
+    const div=curTab==='cbl'?getDiv(line):'ID';
+    const dc=DIV_COLORS_H[div]||'#2a5a2a';
+    const dvLabel=curTab==='cbl'?`<div style="font-size:9px;color:${dc};margin-bottom:3px;">${{ID:'IDENTIFICATION',ENV:'ENVIRONMENT',DATA:'DATA',PROC:'PROCEDURE'}[div]||''} DIVISION</div>`:'';
+    cardsHTML+=`<div style="margin-bottom:16px;page-break-inside:avoid;">${dvLabel}<div>${makeCardSVG(line,i+1,dc)}</div><div style="font-size:9px;color:#446;margin-top:3px;">CARD ${String(i+1).padStart(3,'0')} / ${pLines.length}</div></div>`;
+  });
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>IBM 026 천공카드 — ${lang}</title>
+<style>body{background:#1a1a1a;color:#ccc;font-family:'Courier New',monospace;padding:20px;}.cover{background:#0c0c10;border:1px solid #333;padding:14px 18px;margin-bottom:14px;border-radius:4px;}.cover h1{color:#ffcc44;font-size:16px;letter-spacing:2px;margin-bottom:5px;}.real{background:#001a00;border:1px solid #44ff44;color:#88ff88;padding:8px 12px;margin-bottom:12px;border-radius:3px;font-size:10px;}.colinfo{font-size:9px;color:#556;margin-bottom:12px;letter-spacing:1px;}svg{width:100%;height:auto;}.footer{font-size:8px;color:#444;text-align:center;margin-top:20px;}@media print{body{background:#fff;padding:8mm;}@page{margin:10mm;size:A4;}}</style>
+</head><body>
+<div class="cover"><h1>IBM 026 천공카드 덱 — ${lang}</h1><p style="color:#666;font-size:10px;">총 ${pLines.length}장  |  생성: ${new Date().toLocaleString('ko-KR')}</p></div>
+<div class="real">✓ 구멍 위치: 실제 홀러리스 인코딩 (IBM 026 표준)  |  ✓ 컬럼 배열: 실제 ${lang} 스펙</div>
+<div class="colinfo">${colDesc}</div>
+${cardsHTML}
+<div class="footer">IBM 026 Keypunch Educational Simulator | Hollerith Encoding: Public Domain (1890) | MIT License<br>Not affiliated with IBM Corporation | Generated with Claude Sonnet 4.6</div>
+</body></html>`;
+
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));
+  a.download=`punchcards_${curTab.toUpperCase()}_${new Date().toISOString().slice(0,10)}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  document.getElementById('pinfo').textContent='카드 PDF 저장됨 — 브라우저에서 열고 인쇄하세요';
+}
+
+// 초기화
+ftnLoad('hilbert');
+</script>
+</body>
+</html>

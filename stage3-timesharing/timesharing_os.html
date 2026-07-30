@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GE-645 시분할 운영체제 — CTSS/Multics 1967 | iROS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+
+:root {
+  --bg:      #080810;
+  --panel:   #0c0c18;
+  --deep:    #050508;
+  --border:  #1a1a30;
+  --green:   #33ff33;
+  --amber:   #ffcc00;
+  --cyan:    #00ddff;
+  --red:     #ff4455;
+  --purple:  #cc88ff;
+  --white:   #ccccdd;
+  --dim:     #223322;
+  --real:    #44ff44;
+  --fake:    #ff4444;
+  --warn:    #ff8800;
+
+  /* 사용자별 색상 */
+  --u1: #44ff88;
+  --u2: #ff8844;
+  --u3: #44aaff;
+  --u4: #ff44aa;
+  --u5: #aaff44;
+  --u6: #ffaa44;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--white);font-family:'Share Tech Mono',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* 헤더 */
+.header{
+  background:var(--deep);border-bottom:2px solid #1a1a40;
+  padding:8px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0;flex-wrap:wrap;
+}
+.logo{font-family:'VT323',monospace;font-size:20px;color:var(--cyan);letter-spacing:3px;text-shadow:0 0 10px var(--cyan);}
+.logo-sub{font-size:9px;color:#334;letter-spacing:2px;}
+.stage-badge{background:#0a0a1a;border:1px solid var(--cyan);color:var(--cyan);font-size:9px;padding:3px 8px;letter-spacing:1px;}
+.truth-pills{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap;}
+.pill{font-size:8px;padding:2px 6px;border-radius:10px;letter-spacing:1px;}
+.pill-real{background:#001a00;border:1px solid var(--real);color:var(--real);}
+.pill-fake{background:#1a0000;border:1px solid var(--fake);color:var(--fake);}
+
+/* CPU 상태 바 */
+.cpu-bar{
+  background:#05050f;border-bottom:1px solid var(--border);
+  padding:6px 18px;display:flex;align-items:center;gap:16px;flex-shrink:0;flex-wrap:wrap;
+}
+.cpu-label{font-size:9px;color:#446;letter-spacing:2px;}
+.cpu-gauge-wrap{flex:1;min-width:200px;}
+.cpu-gauge{height:8px;background:#0a0a1a;border:1px solid #223;border-radius:2px;overflow:hidden;position:relative;}
+.cpu-gauge-fill{height:100%;transition:width 0.2s;border-radius:2px;}
+.cpu-info{font-size:9px;color:var(--amber);letter-spacing:1px;white-space:nowrap;}
+.quantum-bar{display:flex;gap:2px;flex:1;min-width:120px;}
+.q-slot{flex:1;height:8px;border-radius:1px;background:#0a0a1a;border:1px solid #1a1a2a;transition:background 0.15s;}
+.q-slot.active{box-shadow:0 0 4px;}
+
+/* 메인 레이아웃 */
+.main{display:grid;grid-template-columns:repeat(3,1fr) 280px;flex:1;min-height:0;gap:1px;background:var(--border);}
+
+/* 터미널 패널 */
+.terminal{
+  background:var(--panel);display:flex;flex-direction:column;min-height:0;
+  position:relative;
+}
+.term-header{
+  padding:5px 10px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.term-header .uname{font-family:'VT323',monospace;font-size:15px;letter-spacing:2px;}
+.term-header .ustatus{font-size:8px;padding:2px 6px;border-radius:2px;margin-left:auto;}
+.ustatus-run{background:#001a00;color:var(--real);border:1px solid var(--real);}
+.ustatus-wait{background:#1a1000;color:var(--amber);border:1px solid var(--amber);}
+.ustatus-idle{background:#0a0a1a;color:#446;border:1px solid #223;}
+
+.screen{
+  flex:1;overflow-y:auto;padding:8px 10px 4px;font-size:11px;line-height:1.6;
+  min-height:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px),var(--panel);
+}
+.screen::-webkit-scrollbar{width:3px;}
+.screen::-webkit-scrollbar-thumb{background:var(--border);}
+
+.s-sys{color:var(--amber);}
+.s-out{color:var(--green);}
+.s-err{color:var(--red);}
+.s-in {color:#aaffaa;}
+.s-info{color:#446644;}
+.s-cpu{color:var(--purple);font-size:9px;}
+
+.input-row{
+  display:flex;align-items:center;gap:5px;
+  padding:5px 8px;border-top:1px solid var(--border);
+  background:var(--deep);flex-shrink:0;
+}
+.prompt{font-size:11px;flex-shrink:0;}
+.tinput{
+  flex:1;background:transparent;border:none;outline:none;
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  text-transform:uppercase;
+}
+.tinput::placeholder{color:#223;text-transform:none;}
+.enter-btn{
+  background:transparent;border:1px solid #223;color:#446;
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  padding:2px 6px;cursor:pointer;
+}
+.enter-btn:hover{border-color:#446;color:#668;}
+
+/* 시스템 패널 */
+.sys-panel{
+  background:#080812;display:flex;flex-direction:column;min-height:0;overflow-y:auto;
+}
+.sys-panel::-webkit-scrollbar{width:3px;}
+.sys-panel::-webkit-scrollbar-thumb{background:var(--border);}
+
+.sys-section{border-bottom:1px solid var(--border);padding:10px 12px;}
+.sys-title{font-family:'VT323',monospace;font-size:14px;letter-spacing:2px;margin-bottom:8px;color:var(--cyan);}
+
+/* 프로세스 테이블 */
+.proc-table{width:100%;font-size:9px;border-collapse:collapse;}
+.proc-table th{color:#446;padding:2px 4px;text-align:left;border-bottom:1px solid #1a1a2a;}
+.proc-table td{padding:2px 4px;font-size:9px;}
+.proc-row{transition:background 0.2s;}
+.proc-row.running td{background:#001500;}
+.proc-row.waiting td{background:#150a00;}
+.proc-row.idle td{opacity:0.4;}
+
+/* 스케줄러 시각화 */
+.scheduler-viz{
+  display:flex;flex-direction:column;gap:3px;
+}
+.sched-row{display:flex;align-items:center;gap:4px;}
+.sched-user-lbl{font-size:9px;width:28px;flex-shrink:0;}
+.sched-track{flex:1;height:10px;background:#0a0a1a;border:1px solid #1a1a2a;border-radius:1px;position:relative;overflow:hidden;}
+.sched-block{height:100%;position:absolute;border-radius:1px;transition:left 0.1s,width 0.1s;}
+
+/* 메모리 맵 */
+.mem-map{
+  display:grid;grid-template-columns:repeat(16,1fr);gap:1px;
+}
+.mem-cell{
+  height:10px;background:#0a0a1a;border-radius:1px;
+  transition:background 0.3s;
+}
+.mem-legend{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.mem-leg{display:flex;align-items:center;gap:3px;font-size:8px;color:#446;}
+.mem-dot{width:8px;height:8px;border-radius:1px;}
+
+/* 이벤트 로그 */
+.event-log{
+  font-size:9px;line-height:1.7;max-height:160px;overflow-y:auto;
+}
+.event-log::-webkit-scrollbar{width:3px;}
+.event-log::-webkit-scrollbar-thumb{background:var(--border);}
+.ev-line{display:flex;gap:6px;}
+.ev-time{color:#446;flex-shrink:0;}
+.ev-msg{color:#668;}
+
+/* 타임라인 */
+.timeline{
+  display:flex;gap:1px;height:20px;border:1px solid #1a1a2a;border-radius:2px;overflow:hidden;
+}
+.tl-slot{flex:1;display:flex;align-items:center;justify-content:center;font-size:7px;transition:background 0.1s;}
+
+/* 빠른 명령 */
+.quick-cmds{display:flex;flex-direction:column;gap:3px;}
+.qcmd{
+  background:#080812;border:1px solid var(--border);color:#446;
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  padding:4px 8px;cursor:pointer;text-align:left;transition:all 0.1s;
+}
+.qcmd:hover{border-color:#446;color:#888;}
+.qcmd .cn{color:var(--cyan);}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.cursor{display:inline-block;width:7px;height:11px;background:var(--green);animation:blink 0.8s infinite;vertical-align:text-bottom;}
+
+/* CRT 오버레이 */
+.crt{position:fixed;top:0;left:0;right:0;height:3px;background:rgba(0,180,255,0.03);pointer-events:none;animation:scan 10s linear infinite;z-index:999;}
+@keyframes scan{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+</style>
+</head>
+<body>
+<div class="crt"></div>
+
+<!-- 헤더 -->
+<div class="header">
+  <div>
+    <div class="logo">GE-645 TIME-SHARING OPERATING SYSTEM</div>
+    <div class="logo-sub">CTSS/MULTICS PROTOTYPE · MIT + BELL LABS · 1967</div>
+  </div>
+  <div class="stage-badge">3단계: 시분할 OS</div>
+  <div class="truth-pills">
+    <div class="pill pill-real">✓ 시분할 스케줄링 개념 실제</div>
+    <div class="pill pill-real">✓ 라운드로빈 CPU 할당 실제</div>
+    <div class="pill pill-real">✓ 다중 사용자 격리 실제</div>
+    <div class="pill pill-fake">✗ GE-645 하드웨어 시뮬</div>
+    <div class="pill pill-fake">✗ 실제 Multics OS 아님</div>
+  </div>
+</div>
+
+<!-- CPU 상태 바 -->
+<div class="cpu-bar">
+  <div class="cpu-label">GE-645 CPU</div>
+  <div class="cpu-gauge-wrap">
+    <div class="cpu-gauge"><div class="cpu-gauge-fill" id="cpuFill" style="width:0%;background:var(--green);"></div></div>
+  </div>
+  <div class="cpu-info" id="cpuInfo">IDLE 0%</div>
+  <div class="cpu-label">TIME QUANTUM (50ms)</div>
+  <div class="quantum-bar" id="quantumBar"></div>
+  <div class="cpu-info" id="clockInfo">CLOCK: 0</div>
+</div>
+
+<!-- 메인 레이아웃 -->
+<div class="main" id="mainGrid">
+
+  <!-- 터미널 1~3 은 JS로 생성 -->
+
+  <!-- 시스템 패널 -->
+  <div class="sys-panel">
+
+    <!-- 프로세스 테이블 -->
+    <div class="sys-section">
+      <div class="sys-title">프로세스 테이블</div>
+      <table class="proc-table">
+        <thead><tr>
+          <th>PID</th><th>USER</th><th>STATUS</th><th>PRI</th><th>CPU%</th>
+        </tr></thead>
+        <tbody id="procTable"></tbody>
+      </table>
+    </div>
+
+    <!-- CPU 스케줄러 시각화 -->
+    <div class="sys-section">
+      <div class="sys-title">스케줄러 <span style="font-size:9px;color:#446;">라운드로빈</span></div>
+      <div class="scheduler-viz" id="schedViz"></div>
+    </div>
+
+    <!-- 타임라인 -->
+    <div class="sys-section">
+      <div class="sys-title">CPU 타임라인</div>
+      <div class="timeline" id="timeline"></div>
+      <div style="font-size:8px;color:#334;margin-top:3px;">최근 32 타임슬롯 — 색깔=사용자</div>
+    </div>
+
+    <!-- 메모리 맵 -->
+    <div class="sys-section">
+      <div class="sys-title">메모리 맵 <span style="font-size:9px;color:#446;">512KB</span></div>
+      <div class="mem-map" id="memMap"></div>
+      <div class="mem-legend" id="memLegend"></div>
+    </div>
+
+    <!-- 시스템 이벤트 로그 -->
+    <div class="sys-section">
+      <div class="sys-title">시스템 이벤트</div>
+      <div class="event-log" id="eventLog"></div>
+    </div>
+
+    <!-- 빠른 명령 -->
+    <div class="sys-section">
+      <div class="sys-title">시스템 명령</div>
+      <div class="quick-cmds">
+        <button class="qcmd" onclick="sysCmd('PAUSE')"><span class="cn">PAUSE</span> — 스케줄러 일시정지</button>
+        <button class="qcmd" onclick="sysCmd('RESUME')"><span class="cn">RESUME</span> — 스케줄러 재개</button>
+        <button class="qcmd" onclick="sysCmd('SPEED1')"><span class="cn">SPEED 1x</span> — 느리게</button>
+        <button class="qcmd" onclick="sysCmd('SPEED2')"><span class="cn">SPEED 2x</span> — 보통</button>
+        <button class="qcmd" onclick="sysCmd('SPEED3')"><span class="cn">SPEED 4x</span> — 빠르게</button>
+        <button class="qcmd" onclick="sysCmd('ADDUSER')"><span class="cn">ADD USER</span> — 사용자 추가</button>
+        <button class="qcmd" onclick="sysCmd('KILL')"><span class="cn">KILL IDLE</span> — 유휴 프로세스 제거</button>
+        <button class="qcmd" onclick="sysCmd('RESET')"><span class="cn">RESET</span> — 시스템 재시작</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// GE-645 시분할 OS 시뮬레이터
+//
+// 진짜: 라운드로빈 스케줄링 개념, 시분할 철학
+// 가짜: GE-645 실제 하드웨어, Multics 실제 OS
+// ══════════════════════════════════════════════════
+
+const USER_COLORS = ['--u1','--u2','--u3','--u4','--u5','--u6'];
+const USER_HEX    = ['#44ff88','#ff8844','#44aaff','#ff44aa','#aaff44','#ffaa44'];
+const USER_NAMES  = ['KEMENY','KURTZ','CORBATO','RITCHIE','THOMPSON','MCILROY'];
+const USER_JOBS   = [
+  'BASIC 인터프리터 실행 중',
+  '수치 계산 (행렬 연산)',
+  'CTSS 커널 개발 중',
+  '텍스트 에디터 (ed)',
+  '파일 시스템 테스트',
+  'Multics 링 보호 연구',
+];
+
+// ── 시스템 상태 ──
+let clock = 0;
+let paused = false;
+let speed = 2;   // 1=느림, 2=보통, 3=빠름
+let schedInterval = null;
+let timelineHistory = [];
+const MAX_USERS = 6;
+const QUANTUM = 50; // ms (시뮬레이션)
+
+// 프로세스 구조체
+class Process {
+  constructor(id, userId) {
+    this.pid = id;
+    this.userId = userId;
+    this.name = USER_NAMES[userId];
+    this.color = USER_HEX[userId];
+    this.cssVar = USER_COLORS[userId];
+    this.status = 'ready'; // ready / running / waiting / blocked
+    this.priority = Math.floor(Math.random() * 3) + 1;
+    this.cpuTime = 0;
+    this.totalTime = 0;
+    this.memPages = Math.floor(Math.random() * 8) + 4; // 메모리 페이지
+    this.memStart = 0;
+    this.job = USER_JOBS[userId];
+    this.outputQueue = [];
+    this.inputBuffer = '';
+    this.waitCycles = 0;
+    this.ioWait = 0;
+  }
+  get cpuPercent() {
+    return this.totalTime > 0
+      ? Math.round((this.cpuTime / Math.max(clock, 1)) * 100)
+      : 0;
+  }
+}
+
+let processes = [];
+let runQueue = [];
+let currentPid = -1;
+let nextPid = 1;
+let memMap = new Array(64).fill(-1); // 64 x 8KB = 512KB
+
+// ── 터미널 상태 ──
+let terminals = {}; // userId → terminal DOM
+
+// ── 메모리 할당 ──
+function allocMem(proc) {
+  let start = -1, count = 0;
+  for (let i = 0; i < memMap.length; i++) {
+    if (memMap[i] === -1) {
+      if (start === -1) start = i;
+      count++;
+      if (count >= proc.memPages) {
+        for (let j = start; j < start + proc.memPages; j++) memMap[j] = proc.userId;
+        proc.memStart = start;
+        return true;
+      }
+    } else { start = -1; count = 0; }
+  }
+  return false;
+}
+
+function freeMem(proc) {
+  for (let i = 0; i < memMap.length; i++) {
+    if (memMap[i] === proc.userId) memMap[i] = -1;
+  }
+}
+
+// ── 터미널 생성 ──
+function createTerminal(userId) {
+  const grid = document.getElementById('mainGrid');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'terminal';
+  wrap.id = `term-${userId}`;
+
+  const color = USER_HEX[userId];
+  const name  = USER_NAMES[userId];
+
+  wrap.innerHTML = `
+    <div class="term-header" style="border-bottom-color:${color}22;">
+      <div class="uname" style="color:${color};">[${userId+1}] ${name}</div>
+      <div style="font-size:8px;color:#446;flex:1;padding-left:6px;">${USER_JOBS[userId].substring(0,20)}</div>
+      <div class="ustatus ustatus-idle" id="ustatus-${userId}">IDLE</div>
+    </div>
+    <div class="screen" id="screen-${userId}"></div>
+    <div class="input-row" style="border-top-color:${color}22;">
+      <span class="prompt" style="color:${color};">${name}$</span>
+      <input class="tinput" id="input-${userId}" style="color:${color}aa;"
+        placeholder="명령어 입력..." autocomplete="off" spellcheck="false"
+        onkeydown="termKey(event,${userId})">
+      <button class="enter-btn" onclick="termEnter(${userId})">↵</button>
+    </div>`;
+
+  // 시스템 패널 앞에 삽입
+  grid.insertBefore(wrap, grid.lastElementChild);
+  terminals[userId] = wrap;
+
+  tprint(userId, `CTSS/MULTICS TIME-SHARING SYSTEM`, 's-sys');
+  tprint(userId, `GE-645 MAINFRAME · MIT 1967`, 's-sys');
+  tprint(userId, `USER: ${name} · PID: ${processes.find(p=>p.userId===userId)?.pid||'?'}`, 's-sys');
+  tprint(userId, `─────────────────────────────`, 's-info');
+  tprint(userId, `CONNECTED. TYPE HELP FOR COMMANDS.`, 's-out');
+  tprint(userId, ``, 's-out');
+}
+
+function tprint(userId, text, cls='s-out') {
+  const screen = document.getElementById(`screen-${userId}`);
+  if (!screen) return;
+  const div = document.createElement('div');
+  div.className = cls;
+  div.textContent = text;
+  screen.appendChild(div);
+  screen.scrollTop = screen.scrollHeight;
+}
+
+// ── 터미널 입력 ──
+function termKey(e, uid) {
+  if (e.key === 'Enter') termEnter(uid);
+}
+
+function termEnter(uid) {
+  const inp = document.getElementById(`input-${uid}`);
+  if (!inp) return;
+  const raw = inp.value.trim();
+  if (!raw) return;
+  inp.value = '';
+
+  tprint(uid, `$ ${raw}`, 's-in');
+
+  const proc = processes.find(p => p.userId === uid);
+  if (proc) proc.inputBuffer = raw.toUpperCase();
+
+  handleTermCmd(uid, raw.toUpperCase());
+}
+
+// ── 터미널 명령 처리 ──
+const USER_PROGRAMS = {
+  HELLO: (uid) => [`HELLO FROM ${USER_NAMES[uid]}!`, `RUNNING ON GE-645 TIME-SHARING SYSTEM`],
+  DATE:  () => [`${new Date().toLocaleString('ko-KR')}`],
+  WHO:   () => processes.map(p=>`  [PID ${p.pid}] ${p.name.padEnd(10)} ${p.status.toUpperCase().padEnd(8)} CPU:${p.cpuPercent}%`),
+  PS:    () => processes.map(p=>`  ${p.pid} ${p.name.padEnd(10)} ${p.status.toUpperCase().padEnd(8)} MEM:${p.memPages*8}KB`),
+  TOP:   () => {
+    const sorted=[...processes].sort((a,b)=>b.cpuTime-a.cpuTime);
+    return ['PID  USER       CPU%  MEM   STATUS',
+            '─'.repeat(38),
+            ...sorted.map(p=>`${p.pid}    ${p.name.padEnd(10)} ${p.cpuPercent}%    ${p.memPages*8}KB  ${p.status.toUpperCase()}`)];
+  },
+  UPTIME:() => [`SYSTEM UPTIME: ${clock} CLOCK TICKS`, `USERS: ${processes.length}`, `LOAD AVG: ${(processes.filter(p=>p.status==='running'||p.status==='ready').length/Math.max(processes.length,1)*100).toFixed(1)}%`],
+  MEM:   () => {
+    const used=memMap.filter(m=>m!==-1).length;
+    return [`TOTAL: 512KB (64 PAGES x 8KB)`,`USED : ${used*8}KB (${used} PAGES)`,`FREE : ${(64-used)*8}KB (${64-used} PAGES)`];
+  },
+  CLEAR: (uid) => { const s=document.getElementById(`screen-${uid}`);if(s)s.innerHTML=''; return []; },
+  HELP:  () => ['COMMANDS: HELLO DATE WHO PS TOP UPTIME MEM CLEAR HELP',
+                'BASIC  — BASIC 인터프리터 시작',
+                'CALC X — 수식 계산',
+                'SLEEP N — N초 I/O 대기 시뮬레이션',
+                'NICE N  — 프로세스 우선순위 변경 (1-5)',
+               ],
+};
+
+function handleTermCmd(uid, cmd) {
+  const proc = processes.find(p=>p.userId===uid);
+
+  // BASIC
+  if (cmd === 'BASIC') {
+    tprint(uid, `DARTMOUTH BASIC LOADED.`, 's-sys');
+    tprint(uid, `(2단계 대화형 시스템으로 이동하세요)`, 's-info');
+    return;
+  }
+
+  // CALC
+  if (cmd.startsWith('CALC ')) {
+    const expr = cmd.substring(5);
+    try {
+      const result = Function('"use strict";return('+expr+')')();
+      tprint(uid, `= ${result}`, 's-out');
+    } catch { tprint(uid, `?SYNTAX ERROR`, 's-err'); }
+    return;
+  }
+
+  // SLEEP (I/O 대기 시뮬레이션)
+  if (cmd.startsWith('SLEEP ')) {
+    const n = parseInt(cmd.substring(6)) || 3;
+    if (proc) { proc.status='waiting'; proc.ioWait=n*10; }
+    tprint(uid, `I/O WAIT: ${n}s — 다른 사용자가 CPU 사용 중...`, 's-info');
+    setUserStatus(uid, 'wait');
+    return;
+  }
+
+  // NICE
+  if (cmd.startsWith('NICE ')) {
+    const n = parseInt(cmd.substring(5));
+    if (proc && n>=1 && n<=5) { proc.priority=n; tprint(uid, `PRIORITY SET TO ${n}`, 's-sys'); }
+    else tprint(uid, `?NICE 1-5`, 's-err');
+    return;
+  }
+
+  // 일반 명령
+  const fn = USER_PROGRAMS[cmd];
+  if (fn) {
+    const out = fn(uid);
+    if (out) out.forEach(l => tprint(uid, l, 's-out'));
+  } else {
+    tprint(uid, `?UNKNOWN COMMAND: ${cmd}`, 's-err');
+    tprint(uid, ` TRY: HELP`, 's-info');
+  }
+}
+
+function setUserStatus(uid, state) {
+  const el = document.getElementById(`ustatus-${uid}`);
+  if (!el) return;
+  el.className = 'ustatus ustatus-' + (state==='run'?'run':state==='wait'?'wait':'idle');
+  el.textContent = state==='run'?'RUNNING':state==='wait'?'WAITING':'IDLE';
+}
+
+// ── 스케줄러 (라운드로빈) ──
+let rrIndex = 0;
+
+function schedTick() {
+  if (paused || processes.length === 0) return;
+  clock++;
+
+  // I/O 대기 해제
+  processes.forEach(p => {
+    if (p.status==='waiting' && p.ioWait>0) {
+      p.ioWait--;
+      if (p.ioWait===0) {
+        p.status='ready';
+        setUserStatus(p.userId, 'idle');
+        tprint(p.userId, `I/O COMPLETE. CPU 반환됨.`, 's-info');
+        sysLog(`[IO] PID ${p.pid} ${p.name} I/O 완료 → ready`);
+      }
+    }
+  });
+
+  // 실행 가능한 프로세스 목록
+  const readyList = processes.filter(p => p.status==='ready' || p.status==='running');
+  if (readyList.length === 0) {
+    updateCpuGauge(0, -1);
+    updateTimeline(-1);
+    return;
+  }
+
+  // 라운드로빈: rrIndex 순환
+  if (rrIndex >= processes.length) rrIndex = 0;
+  let attempts = 0;
+  while (attempts < processes.length) {
+    const proc = processes[rrIndex];
+    rrIndex = (rrIndex+1) % processes.length;
+    if (proc.status==='ready' || proc.status==='running') {
+      // 이전 프로세스 ready로
+      processes.forEach(p => { if (p.status==='running') p.status='ready'; });
+      proc.status = 'running';
+      currentPid = proc.pid;
+
+      proc.cpuTime++;
+      proc.totalTime++;
+
+      // 이 프로세스가 실행되는 동안 출력 생성 (가끔)
+      if (clock % (15 + proc.userId * 3) === 0) {
+        generateOutput(proc);
+      }
+
+      // 랜덤 I/O 이벤트
+      if (Math.random() < 0.04) {
+        proc.status = 'waiting';
+        proc.ioWait = Math.floor(Math.random()*8)+3;
+        setUserStatus(proc.userId, 'wait');
+        sysLog(`[IO] PID ${proc.pid} ${proc.name} I/O 요청 → waiting ${proc.ioWait}틱`);
+        currentPid = -1;
+      } else {
+        setUserStatus(proc.userId, 'run');
+        // 다른 사용자 idle
+        processes.forEach(p=>{if(p.userId!==proc.userId&&p.status!=='waiting')setUserStatus(p.userId,'idle');});
+      }
+
+      updateCpuGauge(75+Math.random()*20, proc.userId);
+      updateTimeline(proc.userId);
+      break;
+    }
+    attempts++;
+  }
+
+  // UI 업데이트
+  if (clock % 3 === 0) {
+    updateProcTable();
+    updateSchedViz();
+    updateMemMap();
+  }
+  document.getElementById('clockInfo').textContent = `CLOCK: ${clock}`;
+}
+
+// ── 프로세스 출력 생성 ──
+const OUTPUT_MSGS = [
+  ['MATRIX MULTIPLICATION... DONE','EIGENVALUE: 3.14159','COMPUTATION COMPLETE'],
+  ['COMPUTING INTEGRAL...','SUM = 1.2345678','ERROR BOUND: 0.0001'],
+  ['KERNEL MODULE LOADED','RING 0 → RING 3 SWITCH','SEGMENT FAULT HANDLED'],
+  ['EDITING FILE: prog.c','SEARCHING PATTERN...','3 LINES REPLACED'],
+  ['INODE ALLOCATED: 2048','BLOCK WRITE OK','FSCK: NO ERRORS'],
+  ['RING PROTECTION TEST','GATE CALL: ACCESS OK','PRIVILEGE LEVEL: 3'],
+];
+
+function generateOutput(proc) {
+  const msgs = OUTPUT_MSGS[proc.userId];
+  const msg = msgs[Math.floor(Math.random()*msgs.length)];
+  tprint(proc.userId, `[${clock}] ${msg}`, 's-cpu');
+}
+
+// ── UI 업데이트 ──
+function updateCpuGauge(pct, uid) {
+  const fill = document.getElementById('cpuFill');
+  const info = document.getElementById('cpuInfo');
+  if (!fill||!info) return;
+  fill.style.width = pct+'%';
+  fill.style.background = uid>=0 ? USER_HEX[uid] : '#446';
+  info.textContent = uid>=0
+    ? `${USER_NAMES[uid]} ${Math.round(pct)}%`
+    : `IDLE ${Math.round(pct)}%`;
+  info.style.color = uid>=0 ? USER_HEX[uid] : '#446';
+}
+
+function updateTimeline(uid) {
+  timelineHistory.push(uid);
+  if (timelineHistory.length > 32) timelineHistory.shift();
+  const tl = document.getElementById('timeline');
+  if (!tl) return;
+  tl.innerHTML = '';
+  timelineHistory.forEach(u => {
+    const slot = document.createElement('div');
+    slot.className = 'tl-slot';
+    if (u >= 0) {
+      slot.style.background = USER_HEX[u]+'88';
+      slot.style.color = USER_HEX[u];
+      slot.textContent = u+1;
+    } else {
+      slot.style.background = '#0a0a1a';
+      slot.textContent = '·';
+      slot.style.color = '#223';
+    }
+    tl.appendChild(slot);
+  });
+}
+
+function updateProcTable() {
+  const tbody = document.getElementById('procTable');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  processes.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.className = `proc-row ${p.status==='running'?'running':p.status==='waiting'?'waiting':'idle'}`;
+    tr.innerHTML = `
+      <td style="color:#446;">${p.pid}</td>
+      <td style="color:${p.color};">${p.name}</td>
+      <td style="color:${p.status==='running'?'var(--real)':p.status==='waiting'?'var(--warn)':'#446'};">${p.status.toUpperCase()}</td>
+      <td style="color:#668;">${p.priority}</td>
+      <td style="color:${p.color};">${p.cpuPercent}%</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateSchedViz() {
+  const viz = document.getElementById('schedViz');
+  if (!viz) return;
+  viz.innerHTML = '';
+  processes.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'sched-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'sched-user-lbl';
+    lbl.style.color = p.color;
+    lbl.textContent = `U${p.userId+1}`;
+    const track = document.createElement('div');
+    track.className = 'sched-track';
+    // CPU 사용 비율 표시
+    const pct = Math.min(p.cpuPercent, 100);
+    const fill = document.createElement('div');
+    fill.className = 'sched-block';
+    fill.style.cssText = `left:0;width:${pct}%;background:${p.color}66;border-right:2px solid ${p.color};`;
+    // 현재 실행 중이면 끝에 표시
+    if (p.status==='running'){
+      fill.style.background=p.color+'99';
+      const dot=document.createElement('div');
+      dot.style.cssText=`position:absolute;right:0;top:0;bottom:0;width:3px;background:${p.color};animation:blink 0.5s infinite;`;
+      fill.appendChild(dot);
+    }
+    track.appendChild(fill);
+    // 상태 레이블
+    const stlbl = document.createElement('span');
+    stlbl.style.cssText=`position:absolute;right:3px;top:0;font-size:7px;line-height:10px;color:${p.color}88;`;
+    stlbl.textContent=p.status==='running'?'▶':p.status==='waiting'?'⏸':'·';
+    track.appendChild(stlbl);
+    row.appendChild(lbl);
+    row.appendChild(track);
+    viz.appendChild(row);
+  });
+}
+
+function updateMemMap() {
+  const el = document.getElementById('memMap');
+  if (!el) return;
+  el.innerHTML = '';
+  memMap.forEach((uid,i) => {
+    const cell = document.createElement('div');
+    cell.className = 'mem-cell';
+    if (uid >= 0) {
+      cell.style.background = USER_HEX[uid]+'88';
+      cell.title = `PAGE ${i}: ${USER_NAMES[uid]}`;
+    } else {
+      cell.title = `PAGE ${i}: FREE`;
+    }
+    el.appendChild(cell);
+  });
+  // 범례
+  const leg = document.getElementById('memLegend');
+  if (!leg) return;
+  leg.innerHTML = '<div class="mem-leg"><div class="mem-dot" style="background:#0a0a1a;border:1px solid #1a1a2a;"></div>FREE</div>';
+  processes.forEach(p=>{
+    const d=document.createElement('div');d.className='mem-leg';
+    d.innerHTML=`<div class="mem-dot" style="background:${p.color}88;"></div><span style="color:${p.color};">${p.name.substring(0,4)}</span>`;
+    leg.appendChild(d);
+  });
+}
+
+// ── 시스템 로그 ──
+function sysLog(msg) {
+  const log = document.getElementById('eventLog');
+  if (!log) return;
+  const div = document.createElement('div');
+  div.className = 'ev-line';
+  div.innerHTML = `<span class="ev-time">[${clock}]</span><span class="ev-msg">${msg}</span>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  // 최대 50줄
+  while (log.children.length > 50) log.removeChild(log.firstChild);
+}
+
+// ── 시스템 명령 ──
+function sysCmd(cmd) {
+  switch(cmd) {
+    case 'PAUSE':
+      paused = true;
+      sysLog(`[SYS] 스케줄러 일시정지`);
+      break;
+    case 'RESUME':
+      paused = false;
+      sysLog(`[SYS] 스케줄러 재개`);
+      break;
+    case 'SPEED1':
+      speed=1; restartScheduler();
+      sysLog(`[SYS] 속도 1x (느림)`);
+      break;
+    case 'SPEED2':
+      speed=2; restartScheduler();
+      sysLog(`[SYS] 속도 2x (보통)`);
+      break;
+    case 'SPEED3':
+      speed=3; restartScheduler();
+      sysLog(`[SYS] 속도 4x (빠름)`);
+      break;
+    case 'ADDUSER':
+      if (processes.length < MAX_USERS) addUser();
+      else sysLog(`[SYS] 최대 사용자(${MAX_USERS}명) 초과`);
+      break;
+    case 'KILL':
+      const idle = processes.filter(p=>p.status==='waiting'&&p.ioWait===0);
+      if (idle.length>0) {
+        const p=idle[0];
+        freeMem(p);
+        processes=processes.filter(x=>x.pid!==p.pid);
+        const el=document.getElementById(`term-${p.userId}`);
+        if(el){tprint(p.userId,`PROCESS KILLED BY SYSTEM`,`s-err`);setTimeout(()=>el.remove(),1000);}
+        delete terminals[p.userId];
+        sysLog(`[SYS] PID ${p.pid} ${p.name} 강제 종료`);
+        updateProcTable();
+      } else sysLog(`[SYS] 종료할 유휴 프로세스 없음`);
+      break;
+    case 'RESET':
+      location.reload();
+      break;
+  }
+}
+
+function addUser() {
+  const usedIds = processes.map(p=>p.userId);
+  let uid = -1;
+  for (let i=0;i<MAX_USERS;i++) { if(!usedIds.includes(i)){uid=i;break;} }
+  if (uid<0) return;
+  const proc = new Process(nextPid++, uid);
+  if (!allocMem(proc)) { sysLog(`[MEM] 메모리 부족 — 사용자 추가 실패`); return; }
+  runQueue.push(proc);
+  processes.push(proc);
+  createTerminal(uid);
+  sysLog(`[LOGIN] ${proc.name} 접속 PID=${proc.pid} MEM=${proc.memPages*8}KB`);
+  updateProcTable();
+  updateMemMap();
+}
+
+function restartScheduler() {
+  if (schedInterval) clearInterval(schedInterval);
+  const delays = {1:400, 2:180, 3:80};
+  schedInterval = setInterval(schedTick, delays[speed]||180);
+}
+
+// ── 퀀텀 바 (시각적) ──
+function buildQuantumBar() {
+  const bar = document.getElementById('quantumBar');
+  if (!bar) return;
+  bar.innerHTML = '';
+  for (let i=0;i<8;i++) {
+    const s=document.createElement('div');s.className='q-slot';s.id=`qs-${i}`;
+    bar.appendChild(s);
+  }
+}
+let qStep=0;
+function animateQuantum(uid) {
+  const slots=document.querySelectorAll('.q-slot');
+  slots.forEach((s,i)=>{
+    s.style.background=i===qStep?(uid>=0?USER_HEX[uid]:'#446'):'#0a0a1a';
+    s.style.boxShadow=i===qStep&&uid>=0?`0 0 4px ${USER_HEX[uid]}`:'none';
+  });
+  qStep=(qStep+1)%8;
+}
+setInterval(()=>{ if(!paused) animateQuantum(currentPid>=0?processes.find(p=>p.pid===currentPid)?.userId??-1:-1); },200);
+
+// ── 부팅 ──
+async function boot() {
+  await sleep(300);
+  sysLog(`[BOOT] GE-645 하드웨어 초기화`);
+  await sleep(200);
+  sysLog(`[BOOT] CTSS 커널 로딩...`);
+  await sleep(300);
+  sysLog(`[BOOT] 메모리 512KB 확인`);
+  await sleep(200);
+  sysLog(`[BOOT] 시분할 스케줄러 시작`);
+  await sleep(200);
+  sysLog(`[BOOT] 시스템 준비 완료`);
+
+  // 초기 사용자 3명 접속
+  for (let i=0;i<3;i++) {
+    await sleep(300);
+    addUser();
+  }
+
+  buildQuantumBar();
+  restartScheduler();
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// 시작
+boot();
+</script>
+</body>
+</html>

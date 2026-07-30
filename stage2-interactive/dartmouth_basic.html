@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dartmouth BASIC Terminal — 1964 | iROS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+
+:root {
+  --bg:     #0a0c08;
+  --screen: #0c0f0a;
+  --green:  #33ff33;
+  --green2: #22cc22;
+  --dim:    #1a3a1a;
+  --dark:   #0a120a;
+  --amber:  #ffcc00;
+  --white:  #ccddcc;
+  --border: #1a2a1a;
+  --paper:  #f5f0e0;
+  --ink:    #1a1200;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── 상단 헤더 패널 ── */
+.header {
+  background: #050805;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.sys-name {
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  color: var(--amber);
+  letter-spacing: 3px;
+  text-shadow: 0 0 10px var(--amber);
+}
+.sys-sub {
+  font-size: 9px;
+  color: #334;
+  letter-spacing: 2px;
+}
+.stage-badge {
+  background: #1a1a00;
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-size: 9px;
+  padding: 3px 8px;
+  letter-spacing: 1px;
+}
+.truth-pills {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.pill {
+  font-size: 8px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 1px;
+}
+.pill-real { background: #001a00; border: 1px solid #44ff44; color: #44ff44; }
+.pill-fake { background: #1a0000; border: 1px solid #ff4444; color: #ff4444; }
+
+/* ── 메인 레이아웃 ── */
+.main {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  flex: 1;
+  min-height: 0;
+  gap: 1px;
+  background: var(--border);
+}
+
+/* ── 터미널 ── */
+.terminal-wrap {
+  display: flex;
+  flex-direction: column;
+  background: var(--screen);
+  min-height: 0;
+}
+
+/* 터미널 상단 바 */
+.term-bar {
+  background: #050a05;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.term-dots { display: flex; gap: 5px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.dot-r { background: #ff5f57; }
+.dot-y { background: #febc2e; }
+.dot-g { background: #28c840; }
+.term-title {
+  font-size: 10px;
+  color: #334;
+  letter-spacing: 2px;
+  margin: 0 auto;
+}
+.term-status {
+  font-size: 9px;
+  color: var(--dim);
+}
+
+/* 화면 출력 영역 */
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 8px 20px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  min-height: 0;
+  /* CRT 스캔라인 효과 */
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    ),
+    var(--screen);
+}
+.screen::-webkit-scrollbar { width: 5px; }
+.screen::-webkit-scrollbar-track { background: var(--dark); }
+.screen::-webkit-scrollbar-thumb { background: var(--dim); }
+
+/* 출력 줄 */
+.line { white-space: pre-wrap; word-break: break-all; }
+.line-sys   { color: var(--amber); }
+.line-out   { color: var(--green); }
+.line-err   { color: #ff5555; }
+.line-info  { color: #448844; }
+.line-in    { color: #88ff88; }
+.line-sep   { color: var(--dim); }
+.line-print { color: #aaffaa; }
+
+/* 커서 깜빡임 */
+@keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+.cursor { display: inline-block; width: 9px; height: 14px; background: var(--green); animation: blink 0.8s infinite; vertical-align: text-bottom; margin-left: 1px; }
+
+/* 입력 행 */
+.input-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--dark);
+  flex-shrink: 0;
+  gap: 8px;
+}
+.prompt-label {
+  color: var(--green2);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.term-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #88ff88;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  caret-color: var(--green);
+  text-transform: uppercase;
+}
+.term-input::placeholder { color: var(--dim); text-transform: none; }
+.enter-btn {
+  background: var(--dim);
+  border: 1px solid var(--green2);
+  color: var(--green2);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.enter-btn:hover { background: var(--green2); color: #000; }
+
+/* ── 사이드패널 ── */
+.side {
+  background: #090d09;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+.side::-webkit-scrollbar { width: 4px; }
+.side::-webkit-scrollbar-thumb { background: var(--border); }
+
+.side-section {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+}
+.side-title {
+  font-family: 'VT323', monospace;
+  font-size: 15px;
+  color: var(--amber);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.side-title .stag {
+  font-size: 8px;
+  font-family: 'Share Tech Mono', monospace;
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+/* 프로그램 에디터 */
+.prog-lines {
+  background: #050805;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 8px;
+  min-height: 120px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.prog-lines::-webkit-scrollbar { width: 3px; }
+.prog-line { display: flex; gap: 6px; }
+.prog-linenum { color: var(--amber); width: 30px; flex-shrink: 0; font-size: 10px; }
+.prog-code { color: var(--green); }
+.prog-empty { color: var(--dim); font-size: 10px; padding: 4px 0; }
+
+/* 명령어 버튼들 */
+.cmd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 6px;
+}
+.cmd-btn {
+  background: var(--dark);
+  border: 1px solid var(--border);
+  color: var(--green2);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  padding: 5px 4px;
+  cursor: pointer;
+  text-align: left;
+  letter-spacing: 0.5px;
+  transition: all 0.1s;
+}
+.cmd-btn:hover { background: var(--dim); border-color: var(--green2); color: var(--green); }
+.cmd-btn .cmd-name { color: var(--amber); font-size: 11px; }
+.cmd-btn .cmd-desc { color: #334; font-size: 9px; display: block; }
+
+/* 예제 프로그램 */
+.example-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ex-btn {
+  background: #050a05;
+  border: 1px solid var(--border);
+  color: #668866;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  padding: 5px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.1s;
+}
+.ex-btn:hover { border-color: var(--green2); color: var(--green); background: var(--dim); }
+.ex-btn .ex-name { color: var(--green2); }
+.ex-btn .ex-desc { color: #334; font-size: 9px; }
+
+/* 역사 정보 */
+.hist-item {
+  font-size: 10px;
+  color: #446644;
+  line-height: 1.7;
+  padding: 2px 0;
+  border-bottom: 1px solid #0a120a;
+}
+.hist-item .year { color: var(--amber); margin-right: 6px; }
+
+/* 텔레타이프 효과 */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+.crt-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: rgba(51,255,51,0.03);
+  pointer-events: none;
+  animation: scanline 8s linear infinite;
+  z-index: 999;
+}
+</style>
+</head>
+<body>
+
+<div class="crt-overlay"></div>
+
+<!-- 헤더 -->
+<div class="header">
+  <div>
+    <div class="sys-name">DARTMOUTH TIME-SHARING SYSTEM</div>
+    <div class="sys-sub">GE-225 MAINFRAME · BASIC INTERPRETER · 1964</div>
+  </div>
+  <div class="stage-badge">2단계: 대화형 터미널</div>
+  <div class="truth-pills">
+    <div class="pill pill-real">✓ BASIC 문법 실제</div>
+    <div class="pill pill-real">✓ 실시간 실행 실제</div>
+    <div class="pill pill-fake">✗ GE-225 하드웨어 시뮬</div>
+    <div class="pill pill-fake">✗ 시분할 OS 시뮬</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- 터미널 -->
+  <div class="terminal-wrap">
+    <div class="term-bar">
+      <div class="term-dots">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <div class="term-title">TELETYPE MODEL 33 ASR — USER TERMINAL</div>
+      <div class="term-status" id="term-status">CONNECTED</div>
+    </div>
+
+    <div class="screen" id="screen"></div>
+
+    <div class="input-row">
+      <span class="prompt-label" id="prompt">READY</span>
+      <input class="term-input" id="term-input" type="text"
+        placeholder="명령어 또는 BASIC 코드 입력 (예: PRINT 2+2, RUN, LIST...)"
+        autocomplete="off" spellcheck="false"
+        onkeydown="onKey(event)">
+      <button class="enter-btn" onclick="submitInput()">ENTER ↵</button>
+    </div>
+  </div>
+
+  <!-- 사이드 패널 -->
+  <div class="side">
+
+    <!-- 현재 프로그램 -->
+    <div class="side-section">
+      <div class="side-title">
+        현재 프로그램
+        <span class="stag" style="background:#001a00;color:#44ff44;border:1px solid #44ff44;">메모리 내</span>
+      </div>
+      <div class="prog-lines" id="prog-display">
+        <div class="prog-empty">[ 프로그램 없음 — 줄번호로 코드 입력 ]</div>
+      </div>
+    </div>
+
+    <!-- 빠른 명령어 -->
+    <div class="side-section">
+      <div class="side-title">명령어 참조</div>
+      <div class="cmd-grid">
+        <button class="cmd-btn" onclick="sendCmd('LIST')"><span class="cmd-name">LIST</span><span class="cmd-desc">프로그램 목록 출력</span></button>
+        <button class="cmd-btn" onclick="sendCmd('RUN')"><span class="cmd-name">RUN</span><span class="cmd-desc">프로그램 실행</span></button>
+        <button class="cmd-btn" onclick="sendCmd('NEW')"><span class="cmd-name">NEW</span><span class="cmd-desc">프로그램 지우기</span></button>
+        <button class="cmd-btn" onclick="sendCmd('SAVE')"><span class="cmd-name">SAVE</span><span class="cmd-desc">프로그램 저장</span></button>
+        <button class="cmd-btn" onclick="sendCmd('LOAD')"><span class="cmd-name">LOAD</span><span class="cmd-desc">저장 불러오기</span></button>
+        <button class="cmd-btn" onclick="sendCmd('HELP')"><span class="cmd-name">HELP</span><span class="cmd-desc">도움말</span></button>
+        <button class="cmd-btn" onclick="sendCmd('PRINT 2+2')"><span class="cmd-name">PRINT</span><span class="cmd-desc">즉시 출력</span></button>
+        <button class="cmd-btn" onclick="sendCmd('BYE')"><span class="cmd-name">BYE</span><span class="cmd-desc">로그아웃</span></button>
+      </div>
+    </div>
+
+    <!-- 예제 프로그램 -->
+    <div class="side-section">
+      <div class="side-title">예제 프로그램 로드</div>
+      <div class="example-list">
+        <button class="ex-btn" onclick="loadExample('hello')">
+          <span class="ex-name">HELLO WORLD</span>
+          <span class="ex-desc">PRINT 문 기초</span>
+        </button>
+        <button class="ex-btn" onclick="loadExample('calc')">
+          <span class="ex-name">사칙연산 계산기</span>
+          <span class="ex-desc">INPUT / PRINT 사용</span>
+        </button>
+        <button class="ex-btn" onclick="loadExample('loop')">
+          <span class="ex-name">FOR-NEXT 반복</span>
+          <span class="ex-desc">구구단 출력</span>
+        </button>
+        <button class="ex-btn" onclick="loadExample('fib')">
+          <span class="ex-name">피보나치 수열</span>
+          <span class="ex-desc">LET / GOTO 사용</span>
+        </button>
+        <button class="ex-btn" onclick="loadExample('guess')">
+          <span class="ex-name">숫자 맞추기 게임</span>
+          <span class="ex-desc">RND / IF-THEN</span>
+        </button>
+        <button class="ex-btn" onclick="loadExample('table')">
+          <span class="ex-name">제곱수 테이블</span>
+          <span class="ex-desc">FOR 중첩 / TAB()</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 역사 정보 -->
+    <div class="side-section">
+      <div class="side-title">역사적 배경</div>
+      <div class="hist-item"><span class="year">1964</span>Dartmouth대학 BASIC 언어 탄생</div>
+      <div class="hist-item"><span class="year">1964</span>GE-225 메인프레임 + 시분할</div>
+      <div class="hist-item"><span class="year">1964</span>최초 일반인용 프로그래밍 언어</div>
+      <div class="hist-item"><span class="year">1965</span>텔레타이프 Model 33 터미널</div>
+      <div class="hist-item"><span class="year">1975</span>Altair BASIC → 빌 게이츠</div>
+      <div class="hist-item"><span class="year">1977</span>Apple II BASIC → 개인컴퓨터 시대</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// DARTMOUTH BASIC 인터프리터
+// 실제 BASIC 문법 동작 ✓
+// GE-225 하드웨어 시뮬레이션 ✗
+// ══════════════════════════════════════════
+
+let program = {};      // 줄번호 → 코드 맵
+let variables = {};    // 변수 저장
+let running = false;
+let inputQueue = [];
+let waitingForInput = false;
+let inputVar = '';
+let inputCallback = null;
+let savedProgram = {};
+
+// 예제 프로그램
+const EXAMPLES = {
+  hello: {
+    10: 'PRINT "================================"',
+    20: 'PRINT "   DARTMOUTH BASIC - 1964"',
+    30: 'PRINT "================================"',
+    40: 'PRINT ""',
+    50: 'PRINT "HELLO, WORLD!"',
+    60: 'PRINT "THIS IS AN INTERACTIVE SYSTEM."',
+    70: 'PRINT "NO MORE PUNCH CARDS NEEDED!"',
+    80: 'PRINT ""',
+    90: 'PRINT "-- JOHN KEMENY & THOMAS KURTZ --"',
+    100: 'END',
+  },
+  calc: {
+    10: 'PRINT "=== CALCULATOR ==="',
+    20: 'INPUT "ENTER FIRST NUMBER: ", A',
+    30: 'INPUT "ENTER SECOND NUMBER: ", B',
+    40: 'PRINT ""',
+    50: 'PRINT "A + B = "; A+B',
+    60: 'PRINT "A - B = "; A-B',
+    70: 'PRINT "A * B = "; A*B',
+    80: 'IF B = 0 THEN GOTO 100',
+    90: 'PRINT "A / B = "; A/B',
+    100: 'PRINT "DONE."',
+    110: 'END',
+  },
+  loop: {
+    10: 'PRINT "=== MULTIPLICATION TABLE ==="',
+    20: 'PRINT ""',
+    30: 'FOR I = 1 TO 9',
+    40: 'FOR J = 1 TO 9',
+    50: 'LET P = I * J',
+    60: 'PRINT I; "X"; J; "="; P',
+    70: 'NEXT J',
+    80: 'PRINT ""',
+    90: 'NEXT I',
+    100: 'END',
+  },
+  fib: {
+    10: 'PRINT "=== FIBONACCI SEQUENCE ==="',
+    20: 'LET A = 0',
+    30: 'LET B = 1',
+    40: 'PRINT A',
+    50: 'PRINT B',
+    60: 'FOR I = 1 TO 8',
+    70: 'LET C = A + B',
+    80: 'PRINT C',
+    90: 'LET A = B',
+    100: 'LET B = C',
+    110: 'NEXT I',
+    120: 'END',
+  },
+  guess: {
+    10: 'PRINT "=== NUMBER GUESSING GAME ==="',
+    20: 'LET S = INT(RND(1) * 100) + 1',
+    30: 'LET T = 0',
+    40: 'INPUT "GUESS (1-100): ", G',
+    50: 'LET T = T + 1',
+    60: 'IF G = S THEN GOTO 100',
+    70: 'IF G < S THEN PRINT "TOO LOW!"',
+    80: 'IF G > S THEN PRINT "TOO HIGH!"',
+    90: 'GOTO 40',
+    100: 'PRINT "CORRECT! TRIES:"; T',
+    110: 'END',
+  },
+  table: {
+    10: 'PRINT "=== POWERS TABLE ==="',
+    20: 'PRINT "N", "N^2", "N^3"',
+    30: 'PRINT "---", "----", "----"',
+    40: 'FOR N = 1 TO 10',
+    50: 'PRINT N, N*N, N*N*N',
+    60: 'NEXT N',
+    70: 'END',
+  },
+};
+
+// ── 화면 출력 ──
+function print(text, cls='line-out') {
+  const screen = document.getElementById('screen');
+  const div = document.createElement('div');
+  div.className = 'line ' + cls;
+  div.textContent = text;
+  screen.appendChild(div);
+  screen.scrollTop = screen.scrollHeight;
+}
+
+function printRaw(text, cls='line-out') {
+  print(text, cls);
+}
+
+async function typeOut(text, cls='line-out', delay=12) {
+  return new Promise(resolve => {
+    const screen = document.getElementById('screen');
+    const div = document.createElement('div');
+    div.className = 'line ' + cls;
+    screen.appendChild(div);
+    let i = 0;
+    const t = setInterval(() => {
+      div.textContent += text[i++] || '';
+      screen.scrollTop = screen.scrollHeight;
+      if (i >= text.length) { clearInterval(t); resolve(); }
+    }, delay);
+  });
+}
+
+// ── 프로그램 표시 업데이트 ──
+function updateProgDisplay() {
+  const el = document.getElementById('prog-display');
+  const nums = Object.keys(program).map(Number).sort((a,b)=>a-b);
+  if (nums.length === 0) {
+    el.innerHTML = '<div class="prog-empty">[ 프로그램 없음 ]</div>';
+    return;
+  }
+  el.innerHTML = '';
+  nums.forEach(n => {
+    const row = document.createElement('div');
+    row.className = 'prog-line';
+    const ln = document.createElement('span');
+    ln.className = 'prog-linenum';
+    ln.textContent = n;
+    const code = document.createElement('span');
+    code.className = 'prog-code';
+    code.textContent = program[n];
+    row.appendChild(ln);
+    row.appendChild(code);
+    el.appendChild(row);
+  });
+}
+
+// ── 입력 처리 ──
+function onKey(e) {
+  if (e.key === 'Enter') submitInput();
+  // 위쪽 화살표: 히스토리
+  if (e.key === 'ArrowUp' && history.length > 0) {
+    histIdx = Math.max(0, histIdx - 1);
+    document.getElementById('term-input').value = history[histIdx] || '';
+  }
+  if (e.key === 'ArrowDown') {
+    histIdx = Math.min(history.length, histIdx + 1);
+    document.getElementById('term-input').value = history[histIdx] || '';
+  }
+}
+
+let history = [];
+let histIdx = 0;
+
+function submitInput() {
+  const inp = document.getElementById('term-input');
+  const raw = inp.value.trim();
+  if (!raw) return;
+  inp.value = '';
+
+  history.push(raw);
+  histIdx = history.length;
+
+  const upper = raw.toUpperCase().trim();
+  print('> ' + raw, 'line-in');
+
+  // INPUT 명령 대기 중
+  if (waitingForInput && inputCallback) {
+    waitingForInput = false;
+    inputCallback(raw);
+    return;
+  }
+
+  // 줄번호 있으면 프로그램 저장
+  const lineMatch = raw.match(/^(\d+)\s*(.*)/);
+  if (lineMatch) {
+    const lineNum = parseInt(lineMatch[1]);
+    const code = lineMatch[2].trim();
+    if (code === '') {
+      delete program[lineNum];
+    } else {
+      program[lineNum] = code.toUpperCase();
+    }
+    updateProgDisplay();
+    return;
+  }
+
+  // 직접 명령
+  handleCommand(upper);
+}
+
+function sendCmd(cmd) {
+  document.getElementById('term-input').value = cmd;
+  submitInput();
+}
+
+// ── 명령 처리 ──
+async function handleCommand(cmd) {
+  const c = cmd.trim();
+
+  if (c === 'NEW') {
+    program = {};
+    variables = {};
+    updateProgDisplay();
+    print('OK. PROGRAM CLEARED.', 'line-sys');
+    return;
+  }
+
+  if (c === 'LIST') {
+    const nums = Object.keys(program).map(Number).sort((a,b)=>a-b);
+    if (nums.length === 0) { print('NO PROGRAM IN MEMORY.', 'line-info'); return; }
+    print('', 'line-sep');
+    nums.forEach(n => print(n + '  ' + program[n], 'line-info'));
+    print('', 'line-sep');
+    return;
+  }
+
+  if (c === 'RUN') {
+    if (Object.keys(program).length === 0) { print('NO PROGRAM.', 'line-err'); return; }
+    await runProgram();
+    return;
+  }
+
+  if (c === 'SAVE') {
+    savedProgram = {...program};
+    print('PROGRAM SAVED TO MEMORY.', 'line-sys');
+    return;
+  }
+
+  if (c === 'LOAD') {
+    if (Object.keys(savedProgram).length === 0) { print('NO SAVED PROGRAM.', 'line-err'); return; }
+    program = {...savedProgram};
+    updateProgDisplay();
+    print('PROGRAM LOADED.', 'line-sys');
+    return;
+  }
+
+  if (c === 'BYE' || c === 'QUIT') {
+    print('', 'line-sep');
+    print('GOODBYE. TERMINAL DISCONNECTED.', 'line-sys');
+    print('DARTMOUTH TIME-SHARING SYSTEM', 'line-sys');
+    print('CONNECT TIME: ' + formatTime(), 'line-sys');
+    print('', 'line-sep');
+    return;
+  }
+
+  if (c === 'HELP') {
+    showHelp();
+    return;
+  }
+
+  if (c === 'CLEAR') {
+    document.getElementById('screen').innerHTML = '';
+    return;
+  }
+
+  // 즉시 실행 (줄번호 없는 문장)
+  if (c.startsWith('PRINT ') || c === 'PRINT') {
+    const val = evalPrint(c.substring(5).trim());
+    print(val, 'line-print');
+    return;
+  }
+
+  if (c.startsWith('LET ') || c.match(/^[A-Z][0-9]?\s*=/)) {
+    execLet(c.startsWith('LET ') ? c.substring(4) : c);
+    print('OK', 'line-sys');
+    return;
+  }
+
+  if (c.startsWith('INPUT ')) {
+    print('? USE INPUT IN A PROGRAM WITH LINE NUMBERS.', 'line-info');
+    return;
+  }
+
+  print('?SYNTAX ERROR OR UNKNOWN COMMAND: ' + c, 'line-err');
+  print(' TRY: HELP', 'line-info');
+}
+
+// ── BASIC 프로그램 실행기 ──
+async function runProgram() {
+  running = true;
+  variables = {};
+  const forStack = [];
+  const nums = Object.keys(program).map(Number).sort((a,b)=>a-b);
+
+  print('', 'line-sep');
+  print('RUNNING...', 'line-sys');
+  await sleep(200);
+
+  let pc = 0; // 프로그램 카운터 (nums 인덱스)
+  let iterations = 0;
+  const MAX_ITER = 5000;
+
+  while (pc < nums.length && iterations++ < MAX_ITER) {
+    const lineNum = nums[pc];
+    const stmt = program[lineNum];
+    if (!stmt) { pc++; continue; }
+
+    const result = await execStmt(stmt, lineNum, nums, pc, forStack);
+
+    if (result === 'END' || result === 'STOP') break;
+    if (result === 'ERROR') { print('?RUNTIME ERROR AT LINE ' + lineNum, 'line-err'); break; }
+    if (typeof result === 'number') {
+      // GOTO/GOSUB 결과 — 줄번호
+      const target = nums.indexOf(result);
+      if (target === -1) { print('?UNDEFINED LINE ' + result, 'line-err'); break; }
+      pc = target;
+      continue;
+    }
+    if (result && result.type === 'FOR') {
+      pc = result.pc;
+      continue;
+    }
+    if (result && result.type === 'NEXT') {
+      pc = result.pc;
+      continue;
+    }
+    pc++;
+    await sleep(0); // 이벤트 루프 양보
+  }
+
+  if (iterations >= MAX_ITER) print('?INFINITE LOOP DETECTED', 'line-err');
+  print('', 'line-sep');
+  print('READY', 'line-sys');
+  running = false;
+}
+
+async function execStmt(stmt, lineNum, nums, pc, forStack) {
+  const s = stmt.trim();
+
+  // REM (주석)
+  if (s.startsWith('REM')) return null;
+
+  // END / STOP
+  if (s === 'END' || s === 'STOP') return 'END';
+
+  // PRINT
+  if (s.startsWith('PRINT')) {
+    const rest = s.substring(5).trim();
+    if (!rest) { print('', 'line-print'); return null; }
+
+    // 세미콜론/콤마 분리 출력
+    const parts = splitPrint(rest);
+    let line = '';
+    for (const part of parts) {
+      if (part.sep === ',') {
+        // TAB 정렬
+        while (line.length % 14 !== 0) line += ' ';
+        line += evalExpr(part.val);
+      } else {
+        line += evalExpr(part.val);
+      }
+    }
+    print(line, 'line-print');
+    return null;
+  }
+
+  // INPUT
+  if (s.startsWith('INPUT')) {
+    const rest = s.substring(5).trim();
+    let promptStr = '? ';
+    let varName = rest;
+
+    // INPUT "프롬프트", VAR
+    const pMatch = rest.match(/^"([^"]*)"\s*,\s*([A-Z][0-9]?)$/);
+    if (pMatch) {
+      promptStr = pMatch[1] + ' ';
+      varName = pMatch[2];
+    } else {
+      varName = rest.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    }
+
+    return new Promise(resolve => {
+      print(promptStr, 'line-sys');
+      waitingForInput = true;
+      inputCallback = (val) => {
+        const n = parseFloat(val);
+        variables[varName] = isNaN(n) ? val : n;
+        resolve(null);
+      };
+    });
+  }
+
+  // LET
+  if (s.startsWith('LET ') || s.match(/^[A-Z][0-9]?\s*=/)) {
+    execLet(s.startsWith('LET ') ? s.substring(4) : s);
+    return null;
+  }
+
+  // FOR
+  if (s.match(/^FOR\s+([A-Z][0-9]?)\s*=\s*(.+)\s+TO\s+(.+)(\s+STEP\s+(.+))?$/i)) {
+    const m = s.match(/^FOR\s+([A-Z][0-9]?)\s*=\s*(.+?)\s+TO\s+(.+?)(\s+STEP\s+(.+))?$/i);
+    const v = m[1].toUpperCase();
+    const from = evalNum(m[2]);
+    const to = evalNum(m[3]);
+    const step = m[5] ? evalNum(m[5]) : 1;
+    variables[v] = from;
+
+    // NEXT 위치 찾기
+    const nextPc = findNext(v, nums, pc);
+    if (nextPc === -1) return 'ERROR';
+
+    forStack.push({ v, to, step, loopPc: pc, nextPc });
+    return null;
+  }
+
+  // NEXT
+  if (s.match(/^NEXT\s*([A-Z][0-9]?)?$/i)) {
+    const m = s.match(/^NEXT\s*([A-Z][0-9]?)?$/i);
+    const v = m[1] ? m[1].toUpperCase() : null;
+
+    // 스택에서 FOR 찾기
+    const fi = v
+      ? forStack.findLastIndex(f => f.v === v)
+      : forStack.length - 1;
+
+    if (fi === -1) return 'ERROR';
+    const frame = forStack[fi];
+    frame.v && (variables[frame.v] = (variables[frame.v] || 0) + frame.step);
+
+    if ((frame.step > 0 && variables[frame.v] <= frame.to) ||
+        (frame.step < 0 && variables[frame.v] >= frame.to)) {
+      // 루프 계속
+      return { type: 'NEXT', pc: frame.loopPc + 1 };
+    } else {
+      // 루프 종료
+      forStack.splice(fi, 1);
+      return null;
+    }
+  }
+
+  // IF ... THEN
+  if (s.match(/^IF\s+(.+)\s+THEN\s+(.+)$/i)) {
+    const m = s.match(/^IF\s+(.+?)\s+THEN\s+(.+)$/i);
+    const cond = evalCond(m[1]);
+    if (cond) {
+      const thenPart = m[2].trim();
+      if (/^\d+$/.test(thenPart)) return parseInt(thenPart);
+      const r2 = await execStmt(thenPart, lineNum, nums, pc, forStack);
+      return r2;
+    }
+    return null;
+  }
+
+  // GOTO
+  if (s.match(/^GOTO\s+(\d+)$/i)) {
+    return parseInt(s.match(/^GOTO\s+(\d+)$/i)[1]);
+  }
+
+  // GOSUB
+  if (s.match(/^GOSUB\s+(\d+)$/i)) {
+    // 간단 구현: 서브루틴은 RETURN까지
+    const target = parseInt(s.match(/\d+/)[0]);
+    return target; // 단순화
+  }
+
+  // RETURN
+  if (s === 'RETURN') return null;
+
+  return null;
+}
+
+function findNext(v, nums, fromPc) {
+  for (let i = fromPc + 1; i < nums.length; i++) {
+    const s = (program[nums[i]] || '').trim().toUpperCase();
+    if (s.match(new RegExp(`^NEXT\\s*${v}?$`))) return i;
+  }
+  return -1;
+}
+
+// ── LET 실행 ──
+function execLet(stmt) {
+  const m = stmt.trim().match(/^([A-Z][0-9]?)\s*=\s*(.+)$/i);
+  if (!m) return;
+  const v = m[1].toUpperCase();
+  const val = evalExpr(m[2]);
+  variables[v] = isNaN(Number(val)) ? val : Number(val);
+}
+
+// ── 표현식 평가 ──
+function evalExpr(expr) {
+  if (!expr) return '';
+  let e = expr.trim();
+
+  // 문자열 리터럴
+  if (e.startsWith('"') && e.endsWith('"')) return e.slice(1,-1);
+
+  // INT(), RND(), SQR(), ABS()
+  e = e.replace(/INT\(([^)]+)\)/gi, (_, x) => Math.floor(evalNum(x)));
+  e = e.replace(/RND\(([^)]+)\)/gi, () => Math.random());
+  e = e.replace(/SQR\(([^)]+)\)/gi, (_, x) => Math.sqrt(evalNum(x)));
+  e = e.replace(/ABS\(([^)]+)\)/gi, (_, x) => Math.abs(evalNum(x)));
+  e = e.replace(/TAB\(([^)]+)\)/gi, (_, x) => ' '.repeat(Math.max(0,parseInt(evalNum(x)))));
+
+  // 변수 치환
+  e = e.replace(/\b([A-Z][0-9]?)\b/g, (m, v) => {
+    if (['AND','OR','NOT','TO','STEP','THEN'].includes(v)) return m;
+    return variables[v] !== undefined ? variables[v] : 0;
+  });
+
+  // 수식 계산
+  try {
+    const result = Function('"use strict"; return (' + e + ')')();
+    if (typeof result === 'number') {
+      if (Number.isInteger(result)) return String(result);
+      return String(Math.round(result * 10000) / 10000);
+    }
+    return String(result);
+  } catch {
+    return e;
+  }
+}
+
+function evalNum(expr) {
+  const v = evalExpr(expr);
+  return isNaN(Number(v)) ? 0 : Number(v);
+}
+
+function evalCond(cond) {
+  let e = cond.trim();
+  e = e.replace(/<>/g, '!==').replace(/<=/g, '<=').replace(/>=/g, '>=').replace(/=/g, '==');
+  e = e.replace(/\b([A-Z][0-9]?)\b/g, (m, v) => {
+    if (['AND','OR','NOT'].includes(v)) return m.toLowerCase();
+    return variables[v] !== undefined ? variables[v] : 0;
+  });
+  e = e.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!');
+  try { return !!Function('"use strict"; return (' + e + ')')(); } catch { return false; }
+}
+
+// PRINT 세미콜론/콤마 파싱
+function splitPrint(rest) {
+  const parts = [];
+  let cur = '', inStr = false, sep = null;
+  for (let i = 0; i < rest.length; i++) {
+    const ch = rest[i];
+    if (ch === '"') { inStr = !inStr; cur += ch; continue; }
+    if (!inStr && (ch === ';' || ch === ',')) {
+      parts.push({ val: cur.trim(), sep: null });
+      sep = ch;
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.trim()) parts.push({ val: cur.trim(), sep });
+  else if (parts.length && sep === ';') parts[parts.length-1].noNewline = true;
+  return parts;
+}
+
+function evalPrint(rest) {
+  if (!rest) return '';
+  const parts = splitPrint(rest);
+  let line = '';
+  for (const part of parts) {
+    if (part.sep === ',') { while(line.length%14!==0) line+=' '; }
+    line += evalExpr(part.val);
+  }
+  return line;
+}
+
+// ── 도움말 ──
+function showHelp() {
+  const help = [
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    'DARTMOUTH BASIC — 명령어 안내',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '',
+    '[시스템 명령]',
+    '  NEW          프로그램 메모리 초기화',
+    '  LIST         현재 프로그램 출력',
+    '  RUN          프로그램 실행',
+    '  SAVE         현재 프로그램 저장',
+    '  LOAD         저장된 프로그램 불러오기',
+    '  CLEAR        화면 지우기',
+    '  BYE          로그아웃',
+    '',
+    '[BASIC 문법]',
+    '  10 PRINT "텍스트"    문자 출력',
+    '  20 INPUT "질문", A   사용자 입력',
+    '  30 LET X = A + B     변수 대입',
+    '  40 IF X>10 THEN 70   조건 분기',
+    '  50 FOR I=1 TO 10     반복 시작',
+    '  60 NEXT I            반복 끝',
+    '  70 GOTO 10           점프',
+    '  80 END               종료',
+    '',
+    '[내장 함수]',
+    '  INT(X)   정수 변환    RND(1) 난수',
+    '  SQR(X)   제곱근       ABS(X) 절대값',
+    '  TAB(N)   N칸 이동',
+    '',
+    '[즉시 실행]',
+    '  PRINT 2+2    줄번호 없이 바로 실행',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+  ];
+  help.forEach(l => print(l, 'line-info'));
+}
+
+// ── 예제 로드 ──
+function loadExample(name) {
+  program = {};
+  const ex = EXAMPLES[name];
+  if (!ex) return;
+  Object.assign(program, ex);
+  updateProgDisplay();
+  print('', 'line-sep');
+  print('PROGRAM LOADED: ' + name.toUpperCase(), 'line-sys');
+  print('TYPE LIST TO VIEW, RUN TO EXECUTE.', 'line-info');
+  print('', 'line-sep');
+}
+
+// ── 유틸 ──
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function formatTime() {
+  const d = new Date();
+  return d.toLocaleTimeString('ko-KR');
+}
+
+// ── 부팅 시퀀스 ──
+async function boot() {
+  const bootLines = [
+    { t: 'DARTMOUTH COLLEGE COMPUTING CENTER', c: 'line-sys', d: 60 },
+    { t: 'GE-225 MAINFRAME — TIME-SHARING SYSTEM', c: 'line-sys', d: 60 },
+    { t: 'BASIC INTERPRETER V1.0 — KEMENY & KURTZ 1964', c: 'line-sys', d: 60 },
+    { t: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', c: 'line-sep', d: 20 },
+    { t: '', c: 'line-out', d: 10 },
+    { t: '⚠  교육용 시뮬레이터 — 실제 GE-225 아님', c: 'line-err', d: 40 },
+    { t: '✓  BASIC 문법 실행: 실제 동작', c: 'line-info', d: 40 },
+    { t: '✓  실시간 대화형 입출력: 실제 동작', c: 'line-info', d: 40 },
+    { t: '✗  GE-225 하드웨어: 시뮬레이션', c: 'line-err', d: 40 },
+    { t: '✗  시분할 OS: 시뮬레이션 (3단계에서 구현)', c: 'line-err', d: 40 },
+    { t: '', c: 'line-out', d: 10 },
+    { t: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', c: 'line-sep', d: 20 },
+    { t: '', c: 'line-out', d: 10 },
+    { t: 'CONNECTED AT: ' + formatTime(), c: 'line-sys', d: 40 },
+    { t: 'USER: GUEST', c: 'line-sys', d: 40 },
+    { t: '', c: 'line-out', d: 10 },
+    { t: 'WELCOME TO DARTMOUTH BASIC.', c: 'line-out', d: 40 },
+    { t: 'TYPE HELP FOR COMMANDS, OR LOAD AN EXAMPLE.', c: 'line-out', d: 40 },
+    { t: '', c: 'line-out', d: 10 },
+    { t: 'READY', c: 'line-sys', d: 30 },
+  ];
+
+  for (const line of bootLines) {
+    await typeOut(line.t, line.c, 4);
+    await sleep(line.d);
+  }
+
+  document.getElementById('term-input').focus();
+}
+
+// 시작
+boot();
+</script>
+</body>
+</html>

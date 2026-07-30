@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Imaginary Retro OS Simulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=IBM+Plex+Mono:wght@300;400;700&display=swap');
+:root{--bg:#080810;--panel:#0d0d18;--border:#1a1a30;--amber:#ffcc00;--cyan:#00ddff;--green:#33ff44;--red:#ff4455;--white:#ccccdd;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--white);font-family:'IBM Plex Mono',monospace;min-height:100vh;}
+.hero{text-align:center;padding:60px 20px 40px;background:radial-gradient(ellipse at center,#0a0a20 0%,var(--bg) 70%);border-bottom:1px solid var(--border);}
+.hero-title{font-family:'VT323',monospace;font-size:clamp(26px,5vw,50px);color:var(--amber);letter-spacing:4px;text-shadow:0 0 20px var(--amber);margin-bottom:10px;}
+.hero-sub{font-size:11px;color:#556;letter-spacing:2px;margin-bottom:20px;}
+.warn{display:inline-block;background:#1a0a00;border:1px solid var(--amber);color:var(--amber);font-size:10px;padding:5px 14px;letter-spacing:1px;border-radius:2px;margin-bottom:28px;}
+.truth{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:28px;}
+.pill{font-size:9px;padding:3px 10px;border-radius:10px;letter-spacing:1px;}
+.pr{background:#001a00;border:1px solid #44ff44;color:#44ff44;}
+.pf{background:#1a0000;border:1px solid #ff4444;color:#ff4444;}
+.timeline{max-width:820px;margin:0 auto;padding:36px 20px;}
+.tl-title{font-family:'VT323',monospace;font-size:20px;color:var(--cyan);letter-spacing:3px;margin-bottom:20px;text-align:center;}
+.tl-item{display:grid;grid-template-columns:70px 18px 1fr;gap:0 14px;padding-bottom:20px;}
+.tl-year{font-family:'VT323',monospace;font-size:17px;color:var(--amber);text-align:right;padding-top:2px;}
+.tl-line{display:flex;flex-direction:column;align-items:center;}
+.tl-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.tl-bar{width:2px;flex:1;min-height:16px;background:var(--border);}
+.tl-content h3{font-size:12px;margin-bottom:3px;}
+.tl-content p{font-size:9px;color:#556;line-height:1.7;}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;max-width:900px;margin:0 auto;padding:0 20px 50px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:22px;cursor:pointer;transition:all 0.2s;text-decoration:none;display:block;}
+.card:hover{border-color:#446;transform:translateY(-2px);box-shadow:0 4px 18px rgba(0,0,0,0.5);}
+.card-num{font-family:'VT323',monospace;font-size:38px;margin-bottom:6px;}
+.card-title{font-family:'VT323',monospace;font-size:17px;letter-spacing:2px;margin-bottom:4px;}
+.card-year{font-size:8px;color:#446;letter-spacing:2px;margin-bottom:8px;}
+.card-desc{font-size:9px;color:#556;line-height:1.8;margin-bottom:12px;}
+.tags{display:flex;gap:4px;flex-wrap:wrap;}
+.tag{font-size:7px;padding:2px 6px;border-radius:2px;letter-spacing:1px;}
+.tag-r{background:#001a00;color:#44ff44;border:1px solid #1a3a1a;}
+.tag-f{background:#1a0000;color:#ff6666;border:1px solid #3a1a1a;}
+.card-btn{display:inline-block;margin-top:12px;font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 12px;border:1px solid;letter-spacing:1px;transition:all 0.15s;}
+.s1{border-top:3px solid #44cc44;}.s1 .card-num,.s1 .card-title{color:#44cc44;}.s1 .card-btn{color:#44cc44;border-color:#44cc44;}.s1:hover .card-btn{background:#44cc44;color:#000;}
+.s2{border-top:3px solid #ffcc44;}.s2 .card-num,.s2 .card-title{color:#ffcc44;}.s2 .card-btn{color:#ffcc44;border-color:#ffcc44;}.s2:hover .card-btn{background:#ffcc44;color:#000;}
+.s3{border-top:3px solid #00ddff;}.s3 .card-num,.s3 .card-title{color:#00ddff;}.s3 .card-btn{color:#00ddff;border-color:#00ddff;}.s3:hover .card-btn{background:#00ddff;color:#000;}
+.footer{background:#05050f;border-top:1px solid var(--border);padding:18px;text-align:center;font-size:9px;color:#334;line-height:2;}
+.footer a{color:#446;text-decoration:none;}.footer a:hover{color:#668;}
+.crt{position:fixed;top:0;left:0;right:0;height:3px;background:rgba(0,180,255,0.02);pointer-events:none;animation:scan 12s linear infinite;z-index:999;}
+@keyframes scan{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+</style>
+</head>
+<body>
+<div class="crt"></div>
+<div class="hero">
+  <div class="hero-title">IMAGINARY IMAGINARY RETRO OS SIMULATOR</div>
+  <div class="hero-sub">1950~1960년대 컴퓨터 역사 교육용 시뮬레이터 · LEGACY SYSTEMS</div>
+  <div style="font-size:10px;color:#446;letter-spacing:2px;margin-top:6px;">
+    <span style="color:#aabb44;">i</span>ROS &nbsp;—&nbsp;
+    <span style="color:#aabb44;">i</span>maginary: 허수(虛數)처럼 실제처럼 보이지만 실제가 아님
+  </div>
+  <div class="warn">⚠ 현재는 사용되지 않는 레거시 시스템입니다 — Educational Purposes Only</div>
+  <div class="truth">
+    <div class="pill pr">✓ 홀러리스 구멍 위치 실제</div>
+    <div class="pill pr">✓ FORTRAN/COBOL 컬럼 배열 실제</div>
+    <div class="pill pr">✓ 시분할 스케줄링 개념 실제</div>
+    <div class="pill pf">✗ 하드웨어 에뮬레이터 아님</div>
+    <div class="pill pf">✗ 실행은 godbolt/jdoodle 연동</div>
+  </div>
+</div>
+<div class="timeline">
+  <div class="tl-title">컴퓨터 역사 타임라인</div>
+  <div class="tl-item"><div class="tl-year">1890</div><div class="tl-line"><div class="tl-dot" style="background:#888;"></div><div class="tl-bar"></div></div><div class="tl-content"><h3 style="color:#888;">홀러리스 천공카드</h3><p>Herman Hollerith, 미국 인구조사용 천공카드 발명. 이후 IBM의 핵심 기술이 됨.</p></div></div>
+  <div class="tl-item"><div class="tl-year">1957</div><div class="tl-line"><div class="tl-dot" style="background:#44cc44;"></div><div class="tl-bar"></div></div><div class="tl-content"><h3 style="color:#44cc44;">FORTRAN II 탄생</h3><p>IBM 704용 최초의 고수준 언어. 천공카드로 입력, 일괄처리 방식. 과학/수학 계산용.</p></div></div>
+  <div class="tl-item"><div class="tl-year">1959</div><div class="tl-line"><div class="tl-dot" style="background:#44cc44;"></div><div class="tl-bar"></div></div><div class="tl-content"><h3 style="color:#44cc44;">COBOL-60 탄생</h3><p>그레이스 호퍼(미 해군). 비즈니스용 언어. 은행/급여/회계 처리. 영어 문장에 가까운 문법.</p></div></div>
+  <div class="tl-item"><div class="tl-year">1964</div><div class="tl-line"><div class="tl-dot" style="background:#ffcc44;"></div><div class="tl-bar"></div></div><div class="tl-content"><h3 style="color:#ffcc44;">Dartmouth BASIC</h3><p>Kemeny & Kurtz. 최초의 일반인용 프로그래밍 언어. 대화형 터미널 시대 개막.</p></div></div>
+  <div class="tl-item"><div class="tl-year">1967</div><div class="tl-line"><div class="tl-dot" style="background:#00ddff;"></div><div class="tl-bar"></div></div><div class="tl-content"><h3 style="color:#00ddff;">Multics / CTSS</h3><p>MIT + Bell Labs + GE. GE-645 메인프레임. 최초의 본격적 시분할 OS. 여러 사용자 동시 접속.</p></div></div>
+  <div class="tl-item"><div class="tl-year">1969</div><div class="tl-line"><div class="tl-dot" style="background:#ff4455;"></div><div class="tl-bar" style="background:transparent;"></div></div><div class="tl-content"><h3 style="color:#ff4455;">Unix 탄생 → 현대 OS의 시작</h3><p>Ken Thompson, Dennis Ritchie (Bell Labs). Linux · macOS · Android · iOS의 조상.</p></div></div>
+</div>
+<div class="cards">
+  <a class="card s1" href="stage1-batch/punchcard_unified.html">
+    <div class="card-num">01</div>
+    <div class="card-title">천공카드 일괄처리</div>
+    <div class="card-year">1957~1964 · IBM 026 · IBM 7094 / IBM 1401</div>
+    <div class="card-desc">FORTRAN II / COBOL-60 역사 샘플을 천공카드에 홀러리스 인코딩으로 표현. godbolt(FORTRAN) / jdoodle(COBOL) 실제 컴파일러 연동.</div>
+    <div class="tags">
+      <div class="tag tag-r">✓ 구멍 위치 실제</div>
+      <div class="tag tag-r">✓ 역사 샘플 코드</div>
+      <div class="tag tag-r">✓ 실제 컴파일러</div>
+    </div>
+    <div class="card-btn">▶ 시작하기</div>
+  </a>
+  <a class="card s2" href="stage2-interactive/dartmouth_basic.html">
+    <div class="card-num">02</div>
+    <div class="card-title">대화형 BASIC 터미널</div>
+    <div class="card-year">1964~1967 · GE-225 · 텔레타이프 Model 33</div>
+    <div class="card-desc">Dartmouth BASIC 인터프리터를 텔레타이프 터미널로 재현. 줄번호 기반 프로그래밍, 실시간 실행. 처음으로 일반인이 컴퓨터를 직접 사용.</div>
+    <div class="tags">
+      <div class="tag tag-r">✓ BASIC 실제 실행</div>
+      <div class="tag tag-r">✓ 실시간 대화형</div>
+    </div>
+    <div class="card-btn">▶ 시작하기</div>
+  </a>
+  <a class="card s3" href="stage3-timesharing/timesharing_os.html">
+    <div class="card-num">03</div>
+    <div class="card-title">시분할 운영체제</div>
+    <div class="card-year">1967~1969 · GE-645 · CTSS / Multics</div>
+    <div class="card-desc">여러 사용자가 하나의 메인프레임을 동시에 사용하는 시분할 시스템. 라운드로빈 CPU 스케줄링, 메모리 보호, 프로세스 관리 시각화.</div>
+    <div class="tags">
+      <div class="tag tag-r">✓ 라운드로빈 실제</div>
+      <div class="tag tag-r">✓ 다중 사용자</div>
+    </div>
+    <div class="card-btn">▶ 시작하기</div>
+  </a>
+</div>
+<div class="footer">
+  <div>Imaginary Retro OS Simulator — Educational Legacy Systems</div>
+  <div>Generated with <strong>Claude Sonnet 4.6</strong> (Anthropic) · MIT License</div>
+  <div>Not affiliated with IBM Corporation · AT&T Bell Labs · MIT · General Electric</div>
+  <div>홀러리스 인코딩: Public Domain (Herman Hollerith, 1890)</div>
+  <div style="margin-top:6px;">
+    <a href="README.md">README</a> &nbsp;·&nbsp;
+    <a href="LICENSE">MIT License</a>
+  </div>
+</div>
+</body>
+</html>
