@@ -102,11 +102,8 @@ iROS/
 
 서버 불필요. 브라우저에서 바로 열기:
 
-```bash
-git clone https://github.com/YOUR_USERNAME/iROS
-cd iROS
-open index.html
-```
+https://hakhong.github.io/iROS/
+
 
 ---
 
